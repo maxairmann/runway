@@ -65,15 +65,21 @@ export interface Trip {
   start: ISODate;
   end: ISODate;
   memberIds: string[];
-  /** Hours charged per workday; null = each person's full day. */
+  /** Hours charged per workday; null = a share of each person's full day (see dayFraction). */
   hoursPerDay: number | null;
+  /** Share of a full day charged per workday when hoursPerDay is null: 1 = full day, 0.5 = half day. */
+  dayFraction?: number;
   status: TripStatus;
 }
+
+export type Units = 'days' | 'hours';
 
 export interface Household {
   id: string;
   name: string;
   members: Member[];
   trips: Trip[];
+  /** How balances and costs are shown. Defaults to days. */
+  units?: Units;
   updatedAt: string;
 }

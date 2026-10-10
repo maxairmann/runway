@@ -79,6 +79,12 @@ describe('time off cost', () => {
     expect(tripCost(m, trip('tg', '2026-11-23', '2026-11-27'))).toBe(24);
   });
 
+  it('charges half of each person’s own full day for a half-day trip', () => {
+    const half = { ...trip('half', '2026-11-23', '2026-11-24'), dayFraction: 0.5 };
+    expect(tripCost(member(), half)).toBe(8);
+    expect(tripCost(member({}, { hoursPerDay: 7.5 }), half)).toBe(7.5);
+  });
+
   it('honors partial days', () => {
     expect(tripCost(member(), trip('half', '2026-11-23', '2026-11-23', ['max'], 4))).toBe(4);
   });

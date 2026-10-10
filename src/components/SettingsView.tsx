@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { formatDate } from '../engine/dates';
 import type { Household } from '../engine/types';
 import type { Store } from '../data/store';
+import { Segmented } from './ui';
 
 function download(name: string, text: string) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -52,8 +53,20 @@ export function SettingsView({ store }: { store: Store }) {
         <h2>Plan</h2>
         <label className="field">
           <span className="label">Plan name</span>
-          <input value={household.name} onChange={(e) => update((h) => ({ ...h, name: e.target.value }))} />
+          <input id="plan-name" value={household.name} onChange={(e) => update((h) => ({ ...h, name: e.target.value }))} />
         </label>
+        <div className="field">
+          <span className="label">Show time in</span>
+          <Segmented
+            label="Show time in"
+            value={household.units ?? 'days'}
+            onChange={(units) => update((h) => ({ ...h, units }))}
+            options={[
+              { value: 'days', label: 'Days' },
+              { value: 'hours', label: 'Hours' },
+            ]}
+          />
+        </div>
       </section>
 
       <section>
@@ -75,7 +88,7 @@ export function SettingsView({ store }: { store: Store }) {
             <p>Saved on this phone only. Nothing leaves this device.</p>
             {cloudConfigured ? (
               <button type="button" className="primary" onClick={() => choose('cloud')}>
-                Share with a partner
+                Sign in to sync or share
               </button>
             ) : (
               <p className="hint">Sharing isn’t switched on for this copy of the app. Back up your plan below to move it between devices.</p>

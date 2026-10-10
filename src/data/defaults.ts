@@ -67,6 +67,7 @@ export function newHousehold(members: Member[]): Household {
     name: names.length === 2 ? `${names[0]} & ${names[1]}` : `${names[0]}'s plan`,
     members,
     trips: [],
+    units: 'days',
     updatedAt: new Date().toISOString(),
   };
 }

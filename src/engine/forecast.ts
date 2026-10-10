@@ -89,7 +89,7 @@ export function usageFor(member: Member, trips: Trip[], untilDay: number): Map<n
   const usage = new Map<number, { hours: number; tripId: string }[]>();
   for (const trip of trips) {
     if (!trip.memberIds.includes(member.id)) continue;
-    const hours = trip.hoursPerDay ?? member.policy.hoursPerDay;
+    const hours = trip.hoursPerDay ?? member.policy.hoursPerDay * (trip.dayFraction ?? 1);
     for (let n = toDay(trip.start); n <= toDay(trip.end); n++) {
       if (!work.has(weekdayOf(n)) || holidays.has(n)) continue;
       const list = usage.get(n) ?? [];

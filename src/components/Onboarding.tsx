@@ -55,7 +55,7 @@ export function Onboarding({
 }) {
   const [you, setYou] = useState<NewMemberInput>(blankMemberInput());
   const [partner, setPartner] = useState<NewMemberInput>(blankMemberInput());
-  const [withPartner, setWithPartner] = useState(true);
+  const [withPartner, setWithPartner] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,10 +84,10 @@ export function Onboarding({
           }
         }}
       >
-        <PersonSetup title="You" value={you} onChange={setYou} />
+        <PersonSetup title="Your PTO" value={you} onChange={setYou} />
         <label className="check">
           <input type="checkbox" checked={withPartner} onChange={(e) => setWithPartner(e.target.checked)} />
-          Plan with a partner
+          Also add a partner (you can do this later)
         </label>
         {withPartner ? <PersonSetup title="Your partner" value={partner} onChange={setPartner} /> : null}
         {error ? <p className="error">{error}</p> : null}

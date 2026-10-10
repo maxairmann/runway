@@ -1,21 +1,23 @@
 # Runway
 
-**Plan time off together, and see before you book whether you'll both have the hours.**
+**See how much PTO you'll have on any date, and whether a trip fits before you book it.**
 
-Runway is a PTO forecaster for couples. Each person enters their balance and how their employer accrues time off; you add trips; the app projects both balances day by day and tells you, in one sentence, whether the plan works.
+Runway is a personal PTO forecaster. Enter your balance and how your employer accrues time off, then drag across the graph to try a trip. The app projects your balance day by day, under your employer's real rules, and tells you in one sentence whether the plan works. Planning with a partner? Add them and both balances share one graph.
 
-It started as a Google Sheet my wife and I used to plan a year of time off. The sheet worked, but it modeled one person, ignored caps and year-end resets, and only checked balances on paydays. Runway fixes all three.
+It started as a Google Sheet my wife and I used to plan a year of time off. The sheet worked, but it ignored caps and year-end resets, only checked balances on paydays, and needed a second copy for a second person. Runway fixes all three.
 
 **Try the demo:** open the app and choose *Try the demo with sample data*. No sign-up.
 
 ## What it does
 
-- **Household view.** Two (up to four) people, each with their own employer's rules, on one chart.
+- **The graph is the app.** Your balance for the next six months, a year, two years, or any dates you pick, in days (or hours), with your low point and cushion marked.
+- **Add trips on the graph.** Press and hold, then drag across the days (on a computer, just drag). The line shows where your balance goes while you drag; let go to name the trip. Full, half, or partial days.
 - **Real employer rules.** Weekly, biweekly, semi-monthly, monthly, or annual accrual; rate changes on a date; maximum balance; carryover cap with a reset date; borrowing below zero; US federal or common company holidays plus custom ones.
 - **Try a trip before booking.** The trip editor shows each person's cost and remaining balance live, with a before/after chart, and flags anyone who would drop under their safety cushion or run out.
 - **Earliest-date finder.** "When can we both take 10 workdays?" scans every start date and returns the first one that keeps everyone above their cushion, counting trips already planned.
 - **Use-it-or-lose-it warnings.** "Jordan forfeits 78.7 h on Jan 1 unless those hours are used."
 - **Paystub corrections.** Enter your real balance on any date and the forecast re-anchors there.
+- **Add a partner (optional).** Each person keeps their own employer's rules on one graph; trips added on the graph ask who's going.
 - **Shared plans.** Sign in with an email link, invite your partner with a one-time link, and edits sync live between phones.
 - **Installable.** Add it to an Android or iPhone home screen; it opens full-screen and works offline.
 

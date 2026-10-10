@@ -13,11 +13,16 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 export function PeopleView({
   household,
   update,
+  initialEditing = null,
 }: {
   household: Household;
   update: (fn: (h: Household) => Household) => void;
+  initialEditing?: string | null;
 }) {
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(initialEditing);
+  // A person added a moment ago is discarded if their editor is cancelled.
+  const [fresh, setFresh] = useState<string | null>(initialEditing);
+  const solo = household.members.length === 1;
   const member = household.members.find((m) => m.id === editing);
 
   const save = (m: Member) => update((h) => ({ ...h, members: h.members.map((x) => (x.id === m.id ? m : x)) }));
@@ -26,6 +31,7 @@ export function PeopleView({
     const m = newMember({ ...blankMemberInput(), name: '' }, household.members.length);
     update((h) => ({ ...h, members: [...h.members, m] }));
     setEditing(m.id);
+    setFresh(m.id);
   };
 
   const remove = (id: string) => {
@@ -40,14 +46,18 @@ export function PeopleView({
   return (
     <div className="people">
       <div className="section-head">
-        <h1>People and policies</h1>
+        <h1>{solo ? 'Your PTO rules' : 'People and rules'}</h1>
         {household.members.length < 4 ? (
           <button type="button" onClick={add}>
-            Add a person
+            {solo ? 'Add a partner' : 'Add a person'}
           </button>
         ) : null}
       </div>
-      <p className="hint">Each person gets their own employer rules. Edit them to match what HR or your paystub says.</p>
+      <p className="hint">
+        {solo
+          ? 'Match these to what HR or your paystub says. Add a partner to plan time off together.'
+          : 'Each person gets their own employer rules. Match them to what HR or each paystub says.'}
+      </p>
 
       <div className="person-cards">
         {household.members.map((m) => (
@@ -78,12 +88,18 @@ export function PeopleView({
           key={member.id}
           member={member}
           canRemove={household.members.length > 1}
+          isPartner={household.members[0]?.id !== member.id}
           onSave={(m) => {
             save(m);
             setEditing(null);
+            setFresh(null);
           }}
           onRemove={() => remove(member.id)}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            if (fresh === member.id) remove(member.id);
+            setFresh(null);
+            setEditing(null);
+          }}
         />
       ) : null}
     </div>
@@ -106,12 +122,14 @@ function anchorLabel(method: AccrualMethod): string {
 
 function MemberEditor({
   member,
+  isPartner,
   canRemove,
   onSave,
   onRemove,
   onClose,
 }: {
   member: Member;
+  isPartner: boolean;
   canRemove: boolean;
   onSave: (m: Member) => void;
   onRemove: () => void;
@@ -135,7 +153,7 @@ function MemberEditor({
   return (
     <Sheet
       open
-      title={member.name ? `Edit ${member.name}` : 'New person'}
+      title={member.name ? `Edit ${member.name}` : isPartner ? 'Add a partner' : 'Your PTO rules'}
       onClose={onClose}
       footer={
         <>
@@ -148,7 +166,7 @@ function MemberEditor({
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="primary" onClick={() => onSave({ ...m, name: m.name.trim() || 'Partner' })}>
+          <button type="button" className="primary" onClick={() => onSave({ ...m, name: m.name.trim() || (isPartner ? 'Partner' : 'Me') })}>
             Save
           </button>
         </>

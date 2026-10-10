@@ -80,13 +80,13 @@ function EarliestFinder({
 
   return (
     <section className="finder" aria-live="polite">
-      <h2>When's the earliest we can go?</h2>
+      <h2>{household.members.length === 1 ? 'When can I go?' : "When's the earliest we can go?"}</h2>
       <div className="finder-row">
         <label className="inline-num">
           <NumberInput value={workdays} step={1} min={1} allowEmpty onChange={(v) => setWorkdays(v === null ? null : Math.round(v))} />
-          <span>workdays off for</span>
+          <span>{household.members.length === 1 ? 'workdays off, starting as soon as possible' : 'workdays off for'}</span>
         </label>
-        <div className="chips">
+        <div className="chips" hidden={household.members.length === 1}>
           {household.members.map((m) => (
             <PersonChip
               key={m.id}
@@ -103,8 +103,8 @@ function EarliestFinder({
       ) : result.ok ? (
         <div className="finder-result">
           <p>
-            <strong>{formatRange(result.start, result.end)}</strong> is the first stretch where {names}{' '}
-            {who.length === 1 ? 'stays' : 'stay'} above {who.length === 1 ? 'the' : 'their'} cushion, counting every trip already planned.
+            <strong>{formatRange(result.start, result.end)}</strong> is the first stretch where{' '}
+            {household.members.length === 1 ? 'you stay above your cushion' : `${names} ${who.length === 1 ? 'stays' : 'stay'} above ${who.length === 1 ? 'the' : 'their'} cushion`}, counting every trip already planned.
           </p>
           <button type="button" onClick={() => onUse({ start: result.start, end: result.end, memberIds: who })}>
             Plan these dates
@@ -114,11 +114,12 @@ function EarliestFinder({
         <p className="warn-line">
           {(() => {
             const m = household.members.find((x) => x.id === result.memberId);
-            return `${m?.name} already ${m && m.buffer > 0 ? 'dips under their cushion' : 'goes below zero'} on ${formatDate(result.date, 'medium')} with the trips planned now. Move or shorten one of those first.`;
+            const solo = household.members.length === 1;
+            return `${solo ? 'You' : m?.name} already ${m && m.buffer > 0 ? (solo ? 'dip under your cushion' : 'dips under their cushion') : solo ? 'go below zero' : 'goes below zero'} on ${formatDate(result.date, 'medium')} with the trips planned now. Move or shorten one of those first.`;
           })()}
         </p>
       ) : (
-        <p className="warn-line">No dates in the next two years work for {names}. Try fewer days.</p>
+        <p className="warn-line">No dates in the next two years work{household.members.length === 1 ? '' : ` for ${names}`}. Try fewer days.</p>
       )}
     </section>
   );

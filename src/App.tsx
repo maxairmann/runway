@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { addDays, todayISO, type ISODate } from './engine/dates';
 import type { Trip } from './engine/types';
 import { newId } from './data/ids';
+import { addDemoPartner } from './data/demo';
+import { blankMemberInput, newMember } from './data/defaults';
 import { useStore } from './data/store';
 import { CloudGate, Welcome } from './components/Entry';
 import { ForecastView } from './components/ForecastView';
@@ -41,6 +43,7 @@ export default function App() {
   const { mode, household, update, choose, startLocal, cloud } = store;
   const [tab, setTab] = useState<Tab>('forecast');
   const [editor, setEditor] = useState<{ trip: Trip; isNew: boolean } | null>(null);
+  const [partnerEdit, setPartnerEdit] = useState<string | null>(null);
   const today: ISODate = useMemo(() => todayISO(), []);
 
   useEffect(() => {
@@ -73,16 +76,29 @@ export default function App() {
         end: prefill?.end ?? addDays(start, 4),
         memberIds: prefill?.memberIds ?? household.members.map((m) => m.id),
         hoursPerDay: null,
+        dayFraction: 1,
         status: 'tentative',
       },
     });
   };
 
+  const addPartner = () => {
+    if (mode === 'demo') {
+      update((h) => addDemoPartner(h));
+      return;
+    }
+    const m = newMember({ ...blankMemberInput(), name: '' }, household.members.length);
+    update((h) => ({ ...h, members: [...h.members, m] }));
+    setPartnerEdit(m.id);
+    setTab('people');
+  };
+  const solo = household.members.length === 1;
+
   return (
     <div className={`shell tab-${tab}`}>
       {mode === 'demo' ? (
         <div className="demo-banner" role="note">
-          <span>Demo with sample data. Edit anything; it resets when you ask.</span>
+          <span>You’re looking at sample data.</span>
           <button type="button" className="link" onClick={() => choose(null)}>
             Start my own plan
           </button>
@@ -104,21 +120,31 @@ export default function App() {
 
       <nav className="tabs" aria-label="Sections">
         {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => {
+              setPartnerEdit(null);
+              setTab(t.id);
+            }}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               {t.icon}
             </svg>
-            <span>{t.label}</span>
+            <span>{t.id === 'people' && solo ? 'My rules' : t.label}</span>
           </button>
         ))}
       </nav>
 
       <main className="content">
         {tab === 'forecast' ? (
-          <ForecastView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={() => planTrip()} onSeeTrips={() => setTab('trips')} />
+          <ForecastView
+            household={household}
+            today={today}
+            onOpenTrip={openTrip}
+            onPlanTrip={planTrip}
+            onSeeTrips={() => setTab('trips')}
+            onAddPartner={addPartner}
+          />
         ) : null}
         {tab === 'trips' ? <TripsView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={planTrip} /> : null}
-        {tab === 'people' ? <PeopleView household={household} update={update} /> : null}
+        {tab === 'people' ? <PeopleView key={partnerEdit ?? 'people'} household={household} update={update} initialEditing={partnerEdit} /> : null}
         {tab === 'settings' ? <SettingsView store={store} /> : null}
       </main>
 

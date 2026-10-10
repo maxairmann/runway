@@ -13,7 +13,7 @@ export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigur
       </div>
       <h1>Runway</h1>
       <p className="lead">
-        Plan time off together, and see before you book whether you’ll both have the hours. Caps, carryover, and holidays included.
+        See how much PTO you’ll have on any date, and whether a trip fits before you book it. Caps, carryover, and holidays included.
       </p>
       <div className="welcome-actions">
         <button type="button" className="primary wide" onClick={() => onChoose('local')}>
@@ -28,7 +28,7 @@ export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigur
           Try the demo with sample data
         </button>
       </div>
-      <p className="fine">A plan on this phone stays on this phone. Sign in to share one with your partner.</p>
+      <p className="fine">A plan on this phone stays on this phone. Planning with a partner? Add them anytime and see both balances on one graph.</p>
     </main>
   );
 }
