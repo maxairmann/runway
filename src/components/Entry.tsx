@@ -13,7 +13,7 @@ export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigur
       </div>
       <h1>Runway</h1>
       <p className="lead">
-        See how much PTO you’ll have on any date, and whether a trip fits before you book it. Caps, carryover, and holidays included.
+        Tap the days you want off and see right away whether you’ll have the PTO. Caps, carryover, and holidays included.
       </p>
       <div className="welcome-actions">
         <button type="button" className="primary wide" onClick={() => onChoose('local')}>
@@ -21,25 +21,24 @@ export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigur
         </button>
         {cloudConfigured ? (
           <button type="button" className="wide" onClick={() => onChoose('cloud')}>
-            Sign in to a shared plan
+            Sign in to sync your plan
           </button>
         ) : null}
         <button type="button" className="wide ghost" onClick={() => onChoose('demo')}>
           Try the demo with sample data
         </button>
       </div>
-      <p className="fine">A plan on this phone stays on this phone. Planning with a partner? Add them anytime and see both balances on one graph.</p>
+      <p className="fine">A plan on this phone stays on this phone. Sign in to use the same plan on your phone and laptop.</p>
     </main>
   );
 }
 
 export function CloudGate({ store, onBack }: { store: Store; onBack: () => void }) {
-  const { cloud, cloudActions, localPlan, joinCode } = store;
+  const { cloud, cloudActions, localPlan } = store;
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [code, setCode] = useState('');
   const [setup, setSetup] = useState(false);
 
   const run = async (fn: () => Promise<void>) => {
@@ -85,10 +84,10 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
         <button type="button" className="link back" onClick={onBack}>
           Back
         </button>
-        <h1>{joinCode ? 'Join a shared plan' : 'Sign in'}</h1>
+        <h1>Sign in</h1>
         {sent ? (
           <p className="lead">
-            Check {email} for a sign-in link. Open it on this device and you’ll land back here, signed in{joinCode ? ' and joined' : ''}.
+            Check {email} for a sign-in link. Open it on this device and you’ll land back here, signed in.
           </p>
         ) : (
           <form
@@ -131,32 +130,17 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
       <button type="button" className="link back" onClick={onBack}>
         Back
       </button>
-      <h1>Set up a shared plan</h1>
-      <p className="lead">Signed in as {cloud.email}. Start a plan your partner can join, or join theirs.</p>
+      <h1>Set up your synced plan</h1>
+      <p className="lead">Signed in as {cloud.email}. Your plan will be the same on every device you sign in on.</p>
       <div className="welcome-actions">
         {localPlan ? (
           <button type="button" className="primary wide" disabled={busy} onClick={() => void run(() => cloudActions.create(localPlan))}>
-            Share the plan on this phone ({localPlan.name})
+            Use the plan on this phone ({localPlan.name})
           </button>
         ) : null}
         <button type="button" className={localPlan ? 'wide' : 'primary wide'} onClick={() => setSetup(true)}>
-          Start a new shared plan
+          Start a new plan
         </button>
-        <form
-          className="join-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run(() => cloudActions.join(code));
-          }}
-        >
-          <label className="field">
-            <span className="label">Or paste an invite code from your partner</span>
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 4f9c2a17b3" />
-          </label>
-          <button type="submit" disabled={!code.trim() || busy}>
-            Join
-          </button>
-        </form>
         {error ? <p className="error">{error}</p> : null}
         <button type="button" className="wide ghost" onClick={() => void cloudActions.signOut()}>
           Sign out

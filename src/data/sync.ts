@@ -108,21 +108,3 @@ export async function subscribeHousehold(id: string, cb: (h: CloudHousehold) => 
     void sb.removeChannel(channel);
   };
 }
-
-export async function createInvite(householdId: string): Promise<string> {
-  const sb = await client();
-  const { data, error } = await sb.rpc('create_invite', { p_household: householdId });
-  fail(error);
-  return data as string;
-}
-
-export async function acceptInvite(code: string): Promise<string> {
-  const sb = await client();
-  const { data, error } = await sb.rpc('accept_invite', { p_code: code });
-  fail(error);
-  return data as string;
-}
-
-export function inviteLink(code: string): string {
-  return `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(code)}`;
-}

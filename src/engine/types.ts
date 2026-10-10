@@ -69,6 +69,8 @@ export interface Trip {
   hoursPerDay: number | null;
   /** Share of a full day charged per workday when hoursPerDay is null: 1 = full day, 0.5 = half day. */
   dayFraction?: number;
+  /** Days inside the trip that are only half days off. */
+  halfDays?: ISODate[];
   status: TripStatus;
 }
 

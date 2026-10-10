@@ -18,7 +18,7 @@ export interface CloudState {
   savedAt?: string;
 }
 
-const KEYS = { mode: 'runway.mode', local: 'runway.local', demo: 'runway.demo', join: 'runway.join' };
+const KEYS = { mode: 'runway.mode', local: 'runway.local', demo: 'runway.demo' };
 
 function read<T>(key: string, store: Storage | null = safeLocal()): T | null {
   try {
@@ -46,34 +46,7 @@ function safeLocal(): Storage | null {
   }
 }
 
-function safeSession(): Storage | null {
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
-/** Pick up ?join=CODE from an invite link once, then clean the URL. */
-function takeJoinCode(): string | null {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('join');
-    if (code) {
-      write(KEYS.join, code, safeSession());
-      params.delete('join');
-      const qs = params.toString();
-      window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
-      return code;
-    }
-  } catch {
-    // ignore
-  }
-  return read<string>(KEYS.join, safeSession());
-}
-
-function initialMode(joinCode: string | null): Mode | null {
-  if (joinCode && sync.cloudConfigured) return 'cloud';
+function initialMode(): Mode | null {
   const m = read<Mode>(KEYS.mode);
   if (m === 'cloud' && !sync.cloudConfigured) return null;
   // A public demo deploy can open straight into the sample household.
@@ -88,8 +61,7 @@ function loadFor(mode: Mode | null): Household | null {
 }
 
 export function useStore() {
-  const [joinCode, setJoinCode] = useState<string | null>(() => takeJoinCode());
-  const [mode, setMode] = useState<Mode | null>(() => initialMode(joinCode));
+  const [mode, setMode] = useState<Mode | null>(() => initialMode());
   const [household, setHousehold] = useState<Household | null>(() => loadFor(mode));
   const [cloud, setCloud] = useState<CloudState>({ phase: 'idle', saving: false });
 
@@ -103,7 +75,7 @@ export function useStore() {
 
   useEffect(() => write(KEYS.mode, mode), [mode]);
 
-  // Shared mode: session → (join) → load household → live updates.
+  // Synced mode: session → load plan → live updates from your other devices.
   const refreshCloud = useCallback(async () => {
     if (!sync.cloudConfigured) return;
     setCloud((c) => ({ ...c, phase: 'checking', error: undefined }));
@@ -115,15 +87,6 @@ export function useStore() {
         return;
       }
       const email = session.user.email ?? undefined;
-      const code = read<string>(KEYS.join, safeSession());
-      if (code) {
-        try {
-          await sync.acceptInvite(code);
-        } finally {
-          write(KEYS.join, null, safeSession());
-          setJoinCode(null);
-        }
-      }
       const loaded = await sync.loadHousehold();
       if (!loaded) {
         setHousehold(null);
@@ -235,20 +198,12 @@ export function useStore() {
       setHousehold(null);
       setCloud({ phase: 'signed-out', saving: false });
     },
-    /** Share a plan: create the household in the cloud from it. */
+    /** Start syncing a plan: create it in the cloud. */
     create: async (h: Household) => {
       const created = await sync.createHousehold(h);
       lastSaved.current = created.updatedAt;
       setHousehold(created.data);
       setCloud((c) => ({ ...c, phase: 'ready', savedAt: created.updatedAt }));
-    },
-    join: async (code: string) => {
-      await sync.acceptInvite(code.trim());
-      await refreshCloud();
-    },
-    invite: async () => {
-      if (!household) throw new Error('No household yet.');
-      return sync.inviteLink(await sync.createInvite(household.id));
     },
     retry: refreshCloud,
   };
@@ -259,7 +214,6 @@ export function useStore() {
     mode,
     household,
     cloud,
-    joinCode,
     localPlan,
     cloudConfigured: sync.cloudConfigured,
     choose,

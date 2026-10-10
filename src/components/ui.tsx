@@ -81,31 +81,6 @@ export function Segmented<T extends string>({
   );
 }
 
-export function PersonChip({
-  name,
-  color,
-  on,
-  onToggle,
-}: {
-  name: string;
-  color: string;
-  on: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`chip ${on ? 'on' : ''}`}
-      style={{ ['--person' as string]: color }}
-      aria-pressed={on}
-      onClick={onToggle}
-    >
-      <span className="dot" aria-hidden="true" />
-      {name}
-    </button>
-  );
-}
-
 export function Dot({ color }: { color: string }) {
   return <span className="dot" style={{ background: color }} aria-hidden="true" />;
 }

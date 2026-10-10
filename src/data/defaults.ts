@@ -21,11 +21,12 @@ export const EVENTS_PER_YEAR: Record<AccrualMethod, number> = {
 
 export interface NewMemberInput {
   name: string;
-  balance: number;
+  balance: number | null;
   asOf: ISODate;
   method: AccrualMethod;
-  rate: number;
-  anchor: ISODate;
+  rate: number | null;
+  /** A real payday (or grant date); empty until the user picks one. */
+  anchor: ISODate | '';
   color?: string;
 }
 
@@ -35,15 +36,15 @@ export function newMember(input: NewMemberInput, index = 0): Member {
     name: input.name.trim() || `Person ${index + 1}`,
     color: input.color ?? PERSON_COLORS[index % PERSON_COLORS.length],
     startDate: input.asOf,
-    startBalance: input.balance,
+    startBalance: input.balance ?? 0,
     buffer: 0,
     holidaySet: 'common',
     holidays: [],
     checkpoints: [],
     policy: {
       method: input.method,
-      anchor: input.anchor,
-      rate: input.rate,
+      anchor: input.anchor || input.asOf,
+      rate: input.rate ?? 0,
       rateChanges: [],
       maxBalance: null,
       carryoverCap: null,
@@ -57,14 +58,13 @@ export function newMember(input: NewMemberInput, index = 0): Member {
 
 export function blankMemberInput(): NewMemberInput {
   const today = todayISO();
-  return { name: '', balance: 0, asOf: today, method: 'biweekly', rate: 4, anchor: today };
+  return { name: '', balance: null, asOf: today, method: 'biweekly', rate: null, anchor: '' };
 }
 
 export function newHousehold(members: Member[]): Household {
-  const names = members.map((m) => m.name);
   return {
     id: newId('household'),
-    name: names.length === 2 ? `${names[0]} & ${names[1]}` : `${names[0]}'s plan`,
+    name: `${members[0].name}'s plan`,
     members,
     trips: [],
     units: 'days',

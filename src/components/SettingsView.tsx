@@ -23,27 +23,9 @@ function looksLikeHousehold(x: unknown): x is Household {
 
 export function SettingsView({ store }: { store: Store }) {
   const { household, mode, cloud, cloudActions, cloudConfigured, update, choose, resetDemo, startLocal } = store;
-  const [invite, setInvite] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   if (!household) return null;
-
-  const makeInvite = async () => {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const link = await cloudActions.invite();
-      setInvite(link);
-      if (navigator.share) {
-        await navigator.share({ title: 'Join our PTO plan', text: 'Plan our time off with me in Runway:', url: link }).catch(() => undefined);
-      }
-    } catch (e) {
-      setMessage((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="settings">
@@ -88,7 +70,7 @@ export function SettingsView({ store }: { store: Store }) {
             <p>Saved on this phone only. Nothing leaves this device.</p>
             {cloudConfigured ? (
               <button type="button" className="primary" onClick={() => choose('cloud')}>
-                Sign in to sync or share
+                Sign in to sync across devices
               </button>
             ) : (
               <p className="hint">Sharing isn’t switched on for this copy of the app. Back up your plan below to move it between devices.</p>
@@ -97,33 +79,15 @@ export function SettingsView({ store }: { store: Store }) {
         ) : (
           <>
             <p>
-              Shared and synced{cloud.email ? `, signed in as ${cloud.email}` : ''}.{' '}
+              Synced across your devices{cloud.email ? `, signed in as ${cloud.email}` : ''}.{' '}
               {cloud.saving ? 'Saving…' : cloud.savedAt ? `Last saved ${formatDate(cloud.savedAt.slice(0, 10), 'medium')}.` : ''}
             </p>
             {cloud.error ? <p className="error">{cloud.error}</p> : null}
             <div className="button-row">
-              <button type="button" className="primary" disabled={busy} onClick={() => void makeInvite()}>
-                Invite your partner
-              </button>
               <button type="button" onClick={() => void cloudActions.signOut()}>
                 Sign out
               </button>
             </div>
-            {invite ? (
-              <div className="invite">
-                <p>Send this link. It works once and expires in 14 days.</p>
-                <input readOnly value={invite} onFocus={(e) => e.target.select()} aria-label="Invite link" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(invite).then(() => setMessage('Link copied.'));
-                  }}
-                >
-                  Copy link
-                </button>
-              </div>
-            ) : null}
-            {message ? <p className="hint">{message}</p> : null}
           </>
         )}
       </section>
@@ -142,7 +106,8 @@ export function SettingsView({ store }: { store: Store }) {
 
       <section>
         <h2>Backup</h2>
-        <p className="hint">A backup is a small file with everyone’s rules and trips. Restoring one replaces this plan.</p>
+        <p className="hint">A backup is a small file with your rules and trips. Restoring one replaces this plan.</p>
+        {message ? <p className="hint">{message}</p> : null}
         <div className="button-row">
           <button type="button" onClick={() => download(`${household.name.replace(/[^\w-]+/g, '-') || 'runway'}-backup.json`, JSON.stringify(household, null, 2))}>
             Download backup

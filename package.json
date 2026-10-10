@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "PTO forecasting for couples: shared plans, real employer rules, and a what-if trip planner.",
+  "description": "A personal PTO planner: pick days on a calendar and see right away whether you will have the hours.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

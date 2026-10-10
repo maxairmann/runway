@@ -1,54 +1,52 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { addDays, todayISO, type ISODate } from './engine/dates';
+import type { Picks } from './engine/plan';
 import type { Trip } from './engine/types';
 import { newId } from './data/ids';
-import { addDemoPartner } from './data/demo';
-import { blankMemberInput, newMember } from './data/defaults';
 import { useStore } from './data/store';
 import { CloudGate, Welcome } from './components/Entry';
-import { ForecastView } from './components/ForecastView';
 import { Onboarding } from './components/Onboarding';
-import { PeopleView } from './components/PeopleView';
+import { PlanView } from './components/PlanView';
+import { RulesView } from './components/RulesView';
 import { SettingsView } from './components/SettingsView';
 import { TripEditor } from './components/TripEditor';
 import { TripsView } from './components/TripsView';
 
-type Tab = 'forecast' | 'trips' | 'people' | 'settings';
+type Tab = 'plan' | 'trips' | 'rules' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: ReactElement }[] = [
-  {
-    id: 'forecast',
-    label: 'Forecast',
-    icon: <path d="M3 17l5-6 4 3 6-8M3 21h18" />,
-  },
-  {
-    id: 'trips',
-    label: 'Trips',
-    icon: <path d="M4 7h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4zM14 7v12" />,
-  },
-  {
-    id: 'people',
-    label: 'People',
-    icon: <path d="M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c0-3 3-5 6-5s6 2 6 5M16 11a3 3 0 100-6M18 20c0-2-1-4-3-4.6" />,
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" />,
-  },
+  { id: 'plan', label: 'Plan', icon: <path d="M5 5h14v15H5zM5 9h14M9 3v4M15 3v4M9 13h2M13 13h2M9 16h2" /> },
+  { id: 'trips', label: 'Trips', icon: <path d="M4 7h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4zM14 7v12" /> },
+  { id: 'rules', label: 'My rules', icon: <path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3" /> },
+  { id: 'settings', label: 'Settings', icon: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" /> },
 ];
+
+interface Toast {
+  id: number;
+  message: string;
+  undo?: () => void;
+}
 
 export default function App() {
   const store = useStore();
   const { mode, household, update, choose, startLocal, cloud } = store;
-  const [tab, setTab] = useState<Tab>('forecast');
+  const [tab, setTab] = useState<Tab>('plan');
   const [editor, setEditor] = useState<{ trip: Trip; isNew: boolean } | null>(null);
-  const [partnerEdit, setPartnerEdit] = useState<string | null>(null);
+  // Picked-but-unsaved days live here so they survive switching tabs.
+  const [picks, setPicks] = useState<Picks>({});
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today: ISODate = useMemo(() => todayISO(), []);
 
   useEffect(() => {
     document.title = household ? `${household.name} – Runway` : 'Runway';
   }, [household]);
+
+  const showToast = (message: string, undo?: () => void) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ id: Date.now(), message, undo });
+    toastTimer.current = setTimeout(() => setToast(null), 6000);
+  };
 
   if (mode === null) {
     return <Welcome cloudConfigured={store.cloudConfigured} hasLocal={store.localPlan !== null} onChoose={choose} />;
@@ -61,11 +59,13 @@ export default function App() {
   }
   if (!household) return null;
 
+  const me = household.members[0];
+
   const openTrip = (id: string) => {
     const trip = household.trips.find((t) => t.id === id);
     if (trip) setEditor({ trip, isNew: false });
   };
-  const planTrip = (prefill?: { start: ISODate; end: ISODate; memberIds: string[] }) => {
+  const planTrip = (prefill?: { start: ISODate; end: ISODate }) => {
     const start = prefill?.start ?? addDays(today, 30);
     setEditor({
       isNew: true,
@@ -74,25 +74,13 @@ export default function App() {
         title: '',
         start,
         end: prefill?.end ?? addDays(start, 4),
-        memberIds: prefill?.memberIds ?? household.members.map((m) => m.id),
+        memberIds: [me.id],
         hoursPerDay: null,
         dayFraction: 1,
-        status: 'tentative',
+        status: 'confirmed',
       },
     });
   };
-
-  const addPartner = () => {
-    if (mode === 'demo') {
-      update((h) => addDemoPartner(h));
-      return;
-    }
-    const m = newMember({ ...blankMemberInput(), name: '' }, household.members.length);
-    update((h) => ({ ...h, members: [...h.members, m] }));
-    setPartnerEdit(m.id);
-    setTab('people');
-  };
-  const solo = household.members.length === 1;
 
   return (
     <div className={`shell tab-${tab}`}>
@@ -120,31 +108,40 @@ export default function App() {
 
       <nav className="tabs" aria-label="Sections">
         {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => {
-              setPartnerEdit(null);
-              setTab(t.id);
-            }}>
+          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               {t.icon}
             </svg>
-            <span>{t.id === 'people' && solo ? 'My rules' : t.label}</span>
+            <span>{t.label}</span>
           </button>
         ))}
       </nav>
 
       <main className="content">
-        {tab === 'forecast' ? (
-          <ForecastView
+        {tab === 'plan' ? (
+          <PlanView
             household={household}
             today={today}
+            picks={picks}
+            setPicks={setPicks}
             onOpenTrip={openTrip}
-            onPlanTrip={planTrip}
-            onSeeTrips={() => setTab('trips')}
-            onAddPartner={addPartner}
+            onClearPicks={() => {
+              const before = picks;
+              const n = Object.values(before).reduce((s, v) => s + v, 0);
+              setPicks({});
+              showToast(`Cleared ${n === 1 ? '1 day' : `${n} days`}.`, () => setPicks(before));
+            }}
+            onSaveTrips={(trips) => {
+              update((h) => ({ ...h, trips: [...h.trips, ...trips] }));
+              setPicks({});
+              showToast(trips.length === 1 ? `Saved ${trips[0].title}.` : `Saved ${trips.length} trips.`, () =>
+                update((h) => ({ ...h, trips: h.trips.filter((x) => !trips.some((t) => t.id === x.id)) })),
+              );
+            }}
           />
         ) : null}
         {tab === 'trips' ? <TripsView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={planTrip} /> : null}
-        {tab === 'people' ? <PeopleView key={partnerEdit ?? 'people'} household={household} update={update} initialEditing={partnerEdit} /> : null}
+        {tab === 'rules' ? <RulesView household={household} update={update} /> : null}
         {tab === 'settings' ? <SettingsView store={store} /> : null}
       </main>
 
@@ -157,14 +154,34 @@ export default function App() {
           today={today}
           onClose={() => setEditor(null)}
           onDelete={(id) => {
+            const gone = household.trips.find((t) => t.id === id);
             update((h) => ({ ...h, trips: h.trips.filter((t) => t.id !== id) }));
             setEditor(null);
+            if (gone) showToast(`Deleted ${gone.title}.`, () => update((h) => ({ ...h, trips: [...h.trips, gone] })));
           }}
           onSave={(t) => {
             update((h) => ({ ...h, trips: h.trips.some((x) => x.id === t.id) ? h.trips.map((x) => (x.id === t.id ? t : x)) : [...h.trips, t] }));
             setEditor(null);
           }}
         />
+      ) : null}
+
+      {toast ? (
+        <div className="toast" role="status" key={toast.id}>
+          <span>{toast.message}</span>
+          {toast.undo ? (
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                toast.undo?.();
+                setToast(null);
+              }}
+            >
+              Undo
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

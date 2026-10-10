@@ -73,27 +73,32 @@ export function isAccrualDay(policy: Policy, day: number): boolean {
   }
 }
 
-function isResetDay(policy: Policy, day: number): boolean {
-  if (!policy.resetDate || policy.carryoverCap === null) return false;
-  const [mm, dd] = policy.resetDate.split('-').map(Number);
-  const { m, d } = partsOf(day);
-  return m === mm && d === dd;
+// Holiday sets are rebuilt only when a member's settings change (planning checks thousands of days per tap).
+const holidayCache = new WeakMap<Member, Map<string, Set<number>>>();
+function holidaySet(member: Member, fromYear: number, toYear: number): Set<number> {
+  let byRange = holidayCache.get(member);
+  if (!byRange) holidayCache.set(member, (byRange = new Map()));
+  const key = `${fromYear}-${toYear}`;
+  let set = byRange.get(key);
+  if (!set) byRange.set(key, (set = new Set(memberHolidays(member, fromYear, toYear).map((h) => toDay(h.date)))));
+  return set;
 }
 
 /** Hours each trip takes from this member, by day number. */
 export function usageFor(member: Member, trips: Trip[], untilDay: number): Map<number, { hours: number; tripId: string }[]> {
   const startYear = partsOf(toDay(member.startDate)).y;
   const endYear = partsOf(untilDay).y;
-  const holidays = new Set(memberHolidays(member, startYear - 1, endYear + 1).map((h) => toDay(h.date)));
+  const holidays = holidaySet(member, startYear - 1, endYear + 1);
   const work = new Set(member.policy.workDays);
   const usage = new Map<number, { hours: number; tripId: string }[]>();
   for (const trip of trips) {
     if (!trip.memberIds.includes(member.id)) continue;
     const hours = trip.hoursPerDay ?? member.policy.hoursPerDay * (trip.dayFraction ?? 1);
+    const half = new Set((trip.halfDays ?? []).map(toDay));
     for (let n = toDay(trip.start); n <= toDay(trip.end); n++) {
       if (!work.has(weekdayOf(n)) || holidays.has(n)) continue;
       const list = usage.get(n) ?? [];
-      list.push({ hours, tripId: trip.id });
+      list.push({ hours: half.has(n) ? member.policy.hoursPerDay / 2 : hours, tripId: trip.id });
       usage.set(n, list);
     }
   }
@@ -121,34 +126,76 @@ export function forecastMember(member: Member, trips: Trip[], opts: ForecastOpti
   let bal = checkpoints.get(startDay) ?? member.startBalance;
   const balances: number[] = [bal];
 
-  for (let n = startDay + 1; n <= endDay; n++) {
-    const date = fromDay(n);
+  // Precompute what the daily loop needs, and walk the calendar without building Date objects per day.
+  const anchor = toDay(policy.anchor);
+  const anchorParts = partsOf(anchor);
+  const [resetM, resetD] = policy.resetDate && policy.carryoverCap !== null ? policy.resetDate.split('-').map(Number) : [0, 0];
+  const changes = [...policy.rateChanges].map((c) => ({ day: toDay(c.from), rate: c.rate })).sort((a, b) => a.day - b.day);
+  let rate = policy.rate;
+  let nextChange = 0;
+  let { y, m, d } = partsOf(startDay);
+  let dim = daysInMonth(y, m);
 
-    if (isResetDay(policy, n)) {
+  for (let n = startDay + 1; n <= endDay; n++) {
+    d++;
+    if (d > dim) {
+      d = 1;
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+      dim = daysInMonth(y, m);
+    }
+    while (nextChange < changes.length && changes[nextChange].day <= n) rate = changes[nextChange++].rate;
+
+    if (resetM && m === resetM && d === resetD) {
       const excess = bal - (policy.carryoverCap as number);
       if (excess > 1e-9) {
         bal -= excess;
-        events.push({ date, kind: 'forfeit', hours: -excess });
+        events.push({ date: fromDay(n), kind: 'forfeit', hours: -excess });
       }
     }
 
-    if (isAccrualDay(policy, n)) {
-      const earned = rateOn(policy, n);
+    let accrues = false;
+    if (n >= anchor) {
+      switch (policy.method) {
+        case 'weekly':
+          accrues = (n - anchor) % 7 === 0;
+          break;
+        case 'biweekly':
+          accrues = (n - anchor) % 14 === 0;
+          break;
+        case 'semimonthly':
+          accrues = d === 15 || d === dim;
+          break;
+        case 'monthly':
+          accrues = d === Math.min(anchorParts.d, dim);
+          break;
+        case 'annual':
+          accrues = m === anchorParts.m && d === Math.min(anchorParts.d, dim);
+          break;
+      }
+    }
+    if (accrues) {
       const room = policy.maxBalance === null ? Infinity : Math.max(0, policy.maxBalance - bal);
-      const added = Math.min(earned, room);
+      const added = Math.min(rate, room);
       bal += added;
-      if (added > 0) events.push({ date, kind: 'accrual', hours: added });
-      if (earned - added > 1e-9) events.push({ date, kind: 'capped', hours: earned - added });
+      if (added > 0) events.push({ date: fromDay(n), kind: 'accrual', hours: added });
+      if (rate - added > 1e-9) events.push({ date: fromDay(n), kind: 'capped', hours: rate - added });
     }
 
-    for (const u of usage.get(n) ?? []) {
-      bal -= u.hours;
-      events.push({ date, kind: 'use', hours: -u.hours, tripId: u.tripId });
+    const used = usage.get(n);
+    if (used) {
+      for (const u of used) {
+        bal -= u.hours;
+        events.push({ date: fromDay(n), kind: 'use', hours: -u.hours, tripId: u.tripId });
+      }
     }
 
     const cp = checkpoints.get(n);
     if (cp !== undefined) {
-      events.push({ date, kind: 'checkpoint', hours: cp - bal });
+      events.push({ date: fromDay(n), kind: 'checkpoint', hours: cp - bal });
       bal = cp;
     }
 
@@ -252,14 +299,27 @@ export function findEarliest(
     if (below !== null) return { ok: false, reason: 'already-below', memberId: m.id, date: below };
   }
 
+  // Days already taken by a trip for anyone going can't be part of a new one.
+  const taken = new Set<number>();
+  for (const t of h.trips) {
+    if (!t.memberIds.some((id) => params.memberIds.includes(id))) continue;
+    for (let n = toDay(t.start); n <= toDay(t.end); n++) taken.add(n);
+  }
+
   for (let s = toDay(params.from) + 1; s <= lastStart; s++) {
-    if (!isWork(s)) continue;
+    if (!isWork(s) || taken.has(s)) continue;
     let count = 0;
     let e = s;
+    let overlaps = false;
     for (; e <= lastStart + 60; e++) {
+      if (taken.has(e)) {
+        overlaps = true;
+        break;
+      }
       if (isWork(e)) count++;
       if (count === params.workdays) break;
     }
+    if (overlaps) continue;
     const trial: Trip = {
       id: '__trial__',
       title: 'Trial',

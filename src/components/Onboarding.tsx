@@ -6,14 +6,14 @@ import { Field, NumberInput } from './ui';
 
 function PersonSetup({ title, value, onChange }: { title: string; value: NewMemberInput; onChange: (v: NewMemberInput) => void }) {
   const set = (patch: Partial<NewMemberInput>) => onChange({ ...value, ...patch });
-  const yearly = round2(value.rate * EVENTS_PER_YEAR[value.method]);
+  const yearly = round2((value.rate ?? 0) * EVENTS_PER_YEAR[value.method]);
   return (
     <fieldset>
       <legend>{title}</legend>
       <Field label="Name">{(id) => <input id={id} value={value.name} autoComplete="given-name" onChange={(e) => set({ name: e.target.value })} />}</Field>
       <div className="row">
         <Field label="PTO balance right now">
-          {(id) => <NumberInput id={id} value={value.balance} suffix="h" onChange={(v) => set({ balance: v ?? 0 })} />}
+          {(id) => <NumberInput id={id} value={value.balance} allowEmpty placeholder="e.g. 40" suffix="h" onChange={(v) => set({ balance: v })} />}
         </Field>
         <Field label="As of">
           {(id) => <input id={id} type="date" value={value.asOf} onChange={(e) => e.target.value && set({ asOf: e.target.value })} />}
@@ -31,11 +31,14 @@ function PersonSetup({ title, value, onChange }: { title: string; value: NewMemb
         )}
       </Field>
       <div className="row">
-        <Field label={value.method === 'annual' ? 'Hours each year' : 'Hours added each time'} hint={`About ${hours(yearly)} (${days(yearly, 8)}) a year`}>
-          {(id) => <NumberInput id={id} value={value.rate} suffix="h" onChange={(v) => set({ rate: v ?? 0 })} />}
+        <Field
+          label={value.method === 'annual' ? 'Hours each year' : 'Hours added each time'}
+          hint={value.rate ? `About ${hours(yearly)} a year, or ${days(yearly, 8)} of 8 hours` : 'Your paystub lists this as accrual or earned hours.'}
+        >
+          {(id) => <NumberInput id={id} value={value.rate} allowEmpty placeholder="e.g. 7.69" suffix="h" onChange={(v) => set({ rate: v })} />}
         </Field>
         {value.method !== 'semimonthly' ? (
-          <Field label={value.method === 'annual' ? 'Date it lands' : 'A payday it gets added'}>
+          <Field label={value.method === 'annual' ? 'Date it lands' : 'Your most recent payday'}>
             {(id) => <input id={id} type="date" value={value.anchor} onChange={(e) => e.target.value && set({ anchor: e.target.value })} />}
           </Field>
         ) : null}
@@ -54,12 +57,10 @@ export function Onboarding({
   busyLabel?: string;
 }) {
   const [you, setYou] = useState<NewMemberInput>(blankMemberInput());
-  const [partner, setPartner] = useState<NewMemberInput>(blankMemberInput());
-  const [withPartner, setWithPartner] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ready = you.name.trim() !== '' && (!withPartner || partner.name.trim() !== '');
+  const ready = you.name.trim() !== '' && you.balance !== null && you.rate !== null && (you.method === 'semimonthly' || you.anchor !== '');
 
   return (
     <main className="onboarding">
@@ -73,7 +74,7 @@ export function Onboarding({
         onSubmit={async (e) => {
           e.preventDefault();
           if (!ready) return;
-          const members = [newMember(you, 0), ...(withPartner ? [newMember(partner, 1)] : [])];
+          const members = [newMember(you, 0)];
           setBusy(true);
           setError(null);
           try {
@@ -85,11 +86,7 @@ export function Onboarding({
         }}
       >
         <PersonSetup title="Your PTO" value={you} onChange={setYou} />
-        <label className="check">
-          <input type="checkbox" checked={withPartner} onChange={(e) => setWithPartner(e.target.checked)} />
-          Also add a partner (you can do this later)
-        </label>
-        {withPartner ? <PersonSetup title="Your partner" value={partner} onChange={setPartner} /> : null}
+        <p className="hint">Balances show in days of 8 hours. You can change the length of a day in My rules.</p>
         {error ? <p className="error">{error}</p> : null}
         <button type="submit" className="primary wide" disabled={!ready || busy}>
           {busy ? (busyLabel ?? 'Creating…') : 'Create plan'}

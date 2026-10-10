@@ -493,172 +493,6 @@ legend {
   margin-top: 0.5rem;
 }
 
-/* Forecast */
-.verdict {
-  padding: 0.5rem 0 0;
-}
-.verdict h1 {
-  font-size: clamp(1.75rem, 6.2vw, 2.75rem);
-  font-weight: 800;
-  line-height: 1.08;
-  max-width: 22ch;
-  text-wrap: balance;
-}
-.verdict.warn h1 {
-  color: var(--amber-ink);
-}
-.verdict.bad h1 {
-  color: var(--red);
-}
-.verdict .loss {
-  margin-top: 0.75rem;
-  max-width: 60ch;
-  background: var(--amber-wash);
-  color: var(--amber-ink);
-  border-left: 4px solid var(--amber);
-  padding: 0.6rem 0.8rem 0.5rem;
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-.verdict .loss .link {
-  color: inherit;
-}
-.verdict .hint {
-  margin-top: 0.4rem;
-}
-
-.people-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.75rem;
-}
-.person-stat {
-  border-top: 4px solid var(--person);
-  padding: 0.6rem 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-.person-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-weight: 800;
-}
-.person-now {
-  font-size: 1.35rem;
-  font-weight: 800;
-}
-.person-low {
-  font-size: 0.875rem;
-  color: var(--ink-2);
-}
-
-.chart-card {
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius-lg);
-  padding: 0.9rem 0.6rem 0.75rem;
-}
-.chart-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0.4rem 0.4rem;
-}
-.chart {
-  position: relative;
-  width: 100%;
-  touch-action: pan-y;
-}
-.chart svg {
-  display: block;
-  overflow: visible;
-}
-.chart .grid line {
-  stroke: var(--line-soft);
-}
-.chart .grid line.zero {
-  stroke: var(--ink-3);
-  stroke-width: 1.25;
-}
-.chart .grid text,
-.chart .band-label,
-.chart .today text {
-  fill: var(--ink-3);
-  font-size: 11px;
-  font-family: var(--font);
-}
-.chart .band-label {
-  fill: var(--ink-2);
-  font-weight: 600;
-}
-.chart .today line {
-  stroke: var(--ink);
-  stroke-width: 1;
-  stroke-dasharray: 2 3;
-}
-.chart .low-marker circle {
-  fill: var(--amber);
-  stroke: var(--surface);
-  stroke-width: 2;
-}
-.chart .low-marker text {
-  fill: var(--amber-ink);
-  font-size: 11.5px;
-  font-weight: 700;
-  font-family: var(--font);
-  paint-order: stroke;
-  stroke: var(--surface);
-  stroke-width: 3px;
-}
-.chart .hover line {
-  stroke: var(--ink-3);
-}
-.chart-tip {
-  position: absolute;
-  pointer-events: none;
-  background: var(--ink);
-  color: var(--page);
-  border-radius: var(--radius-sm);
-  padding: 0.45rem 0.6rem 0.35rem;
-  font-size: 0.8rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  white-space: nowrap;
-}
-.chart-tip span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem 1rem;
-  font-size: 0.82rem;
-  color: var(--ink-2);
-  padding: 0.25rem 0.4rem 0;
-}
-.legend > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-.swatch {
-  width: 16px;
-  height: 3px;
-  border-radius: 2px;
-  display: inline-block;
-}
-.swatch.band {
-  height: 12px;
-  width: 12px;
-  background: color-mix(in srgb, var(--ink) 12%, transparent);
-}
-
 /* Boarding passes: the trip as a ticket stub */
 .passes {
   display: flex;
@@ -684,13 +518,6 @@ legend {
 }
 .pass:hover:not(:disabled) {
   box-shadow: 0 1px 0 var(--line), 0 0 0 1.5px var(--ink-3);
-}
-.pass.tentative {
-  background:
-    radial-gradient(circle at var(--stub-x) 0, var(--page) var(--notch), transparent calc(var(--notch) + 0.5px)),
-    radial-gradient(circle at var(--stub-x) 100%, var(--page) var(--notch), transparent calc(var(--notch) + 0.5px)),
-    repeating-linear-gradient(-45deg, transparent 0 8px, color-mix(in srgb, var(--ink) 4%, transparent) 8px 10px),
-    var(--surface);
 }
 .pass-main {
   display: flex;
@@ -1107,265 +934,6 @@ legend {
   white-space: nowrap;
 }
 
-/* Forecast: the graph fills the screen; balances and trips live in a pull-up panel */
-.shell.tab-forecast {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 0;
-}
-.shell.tab-forecast .content {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  display: flex;
-  padding-bottom: calc(var(--tab-h) + env(safe-area-inset-bottom));
-}
-.forecast {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.forecast-main {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding-bottom: calc(var(--peek, 120px) + 0.5rem);
-}
-.verdict-bar h1 {
-  font-size: clamp(1.2rem, 4.8vw, 1.9rem);
-  line-height: 1.15;
-  max-width: 34ch;
-  text-wrap: balance;
-}
-.verdict-bar.warn h1 {
-  color: var(--amber-ink);
-}
-.verdict-bar.bad h1 {
-  color: var(--red);
-}
-.verdict-bar .loss {
-  margin-top: 0.3rem;
-  font-size: 0.9rem;
-  color: var(--amber-ink);
-  font-weight: 600;
-}
-.range-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 0.75rem;
-  align-items: flex-end;
-}
-.custom-range {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: flex-end;
-}
-.custom-range label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--ink-2);
-}
-.custom-range input {
-  width: 9.75rem;
-  min-height: 40px;
-  padding: 0.4rem 0.5rem 0.3rem;
-}
-.chart-stage {
-  flex: 1;
-  min-height: 210px;
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: 0.4rem 0.25rem 0.1rem;
-  position: relative;
-}
-.chart.fill {
-  height: 100%;
-}
-.chart.interactive svg {
-  touch-action: none;
-  cursor: crosshair;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-}
-.chart .selection {
-  fill: var(--amber);
-  fill-opacity: 0.18;
-  stroke: var(--amber);
-  stroke-width: 1.5;
-}
-.chart .unit-label {
-  font-weight: 700;
-}
-.chart-tip.selecting {
-  background: var(--amber-wash);
-  color: var(--amber-ink);
-  border: 1.5px solid var(--amber);
-}
-.chart-hint {
-  font-size: 0.8rem;
-  color: var(--ink-3);
-  text-align: center;
-}
-
-.panel {
-  position: absolute;
-  left: -1rem;
-  right: -1rem;
-  bottom: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  max-height: 78%;
-  background: var(--surface);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  box-shadow: 0 -1px 0 var(--line), 0 -10px 28px rgb(10 18 30 / 0.1);
-}
-.panel-peek {
-  padding: 0 1rem 0.8rem;
-}
-.panel-handle {
-  width: 100%;
-  min-height: 30px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  padding: 0.55rem 0 0.35rem;
-  display: flex;
-  justify-content: center;
-  touch-action: none;
-}
-.grabber {
-  width: 42px;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--line);
-}
-.balances {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.4rem 1rem;
-}
-.balance {
-  display: flex;
-  flex-direction: column;
-}
-.balance-who {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--ink-2);
-}
-.balance-who .dot {
-  background: var(--person);
-}
-.balance-now {
-  font-size: 1.45rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-.balance-low {
-  font-size: 0.82rem;
-  color: var(--ink-2);
-}
-.panel-body {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.25rem 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
-  border-top: 1px solid var(--line-soft);
-}
-.panel-body .section-head {
-  margin: 0.25rem 0 0;
-}
-.panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 0.75rem;
-}
-.partner-offer {
-  border-top: 1px solid var(--line-soft);
-  padding-top: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  align-items: flex-start;
-  color: var(--ink-2);
-}
-.who-buttons {
-  display: grid;
-  gap: 0.6rem;
-}
-.who {
-  min-height: 56px;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  border-color: var(--person, var(--ink));
-}
-.who .dot {
-  background: var(--person);
-}
-.who.both {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--page);
-}
-.lead.small {
-  font-size: 1rem;
-}
-.pass.solo .pass-stub {
-  align-items: center;
-}
-.pass-cost.big {
-  font-size: 1.15rem;
-  font-weight: 800;
-}
-
-@media (min-width: 960px) {
-  .shell.tab-forecast .content {
-    padding-bottom: 1rem;
-  }
-  .forecast {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 1.25rem;
-  }
-  .forecast-main {
-    padding-bottom: 0;
-  }
-  .panel {
-    position: static;
-    max-height: none;
-    min-height: 0;
-    border-radius: var(--radius-lg);
-    box-shadow: none;
-    border: 1px solid var(--line-soft);
-    overflow: hidden;
-  }
-  .panel-peek {
-    padding: 1rem 1rem 0.8rem;
-  }
-}
 [hidden] {
   display: none !important;
 }
@@ -1377,10 +945,407 @@ legend {
     width: 100%;
   }
 }
-.panel .pass {
-  --stub-x: calc(100% - 104px);
+
+/* Plan: a month calendar for picking a few exact days */
+.plan {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-top: 0.5rem;
 }
-.panel .pass-stub {
-  width: 104px;
-  padding-inline: 0.7rem;
+.plan-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.plan-banked {
+  font-size: 1.1rem;
+  color: var(--ink-2);
+}
+.who-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+}
+.plan-warning {
+  background: var(--red-wash);
+  color: var(--red);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem 0.5rem;
+  font-weight: 600;
+}
+.calendar {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 0.6rem 0.6rem 0.8rem;
+}
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.1rem 0.5rem;
+}
+.month-nav h2 {
+  font-size: 1.15rem;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  padding-bottom: 0.2rem;
+}
+.cal-day {
+  position: relative;
+  min-height: 56px;
+  min-width: 0;
+  padding: 0.3rem 0.35rem 0.25rem;
+  border-radius: 10px;
+  border: 1.5px solid var(--line-soft);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  font-weight: 700;
+  text-align: left;
+  overflow: hidden;
+}
+.cal-day:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.cal-num {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.cal-bal {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  align-self: flex-end;
+  line-height: 1;
+}
+.cal-day.off,
+.cal-day.past {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.cal-day.out {
+  visibility: hidden;
+}
+.cal-day.today {
+  border-color: var(--ink);
+}
+.cal-day.holiday::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+.cal-day.short {
+  background: var(--red-wash);
+  border-color: transparent;
+  color: var(--red);
+}
+.cal-day.short .cal-bal {
+  color: var(--red);
+}
+.cal-day.trip {
+  background: color-mix(in srgb, var(--ink) 12%, var(--surface));
+  border-color: transparent;
+}
+.cal-day.picked {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--page);
+}
+.cal-day.picked .cal-bal {
+  color: color-mix(in srgb, var(--page) 75%, transparent);
+}
+.cal-day.picked.half {
+  background: linear-gradient(to top, var(--ink) 50%, var(--surface) 50%);
+  color: var(--ink);
+}
+.cal-day.picked.half .cal-bal {
+  color: var(--page);
+}
+.cal-day.picked.flagged {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+.cal-day.picked.half.flagged {
+  background: linear-gradient(to top, var(--red) 50%, var(--red-wash) 50%);
+  color: var(--red);
+}
+.cal-day.picked.flagged .cal-bal {
+  color: #fff;
+}
+.cal-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+.cal-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.key {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.key.picked {
+  background: var(--ink);
+}
+.key.half {
+  background: linear-gradient(to top, var(--ink) 50%, var(--surface) 50%);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+.key.short {
+  background: var(--red-wash);
+  box-shadow: inset 0 0 0 1.5px var(--red);
+}
+.key-note {
+  width: 100%;
+  color: var(--ink-3);
+}
+.plan-bar {
+  position: sticky;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 0.5rem);
+  z-index: 2;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border-left: 5px solid var(--green);
+  box-shadow: 0 6px 24px rgb(10 18 30 / 0.12);
+  padding: 0.75rem 0.9rem 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.plan-bar.problem {
+  border-left-color: var(--red);
+}
+.plan-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.plan-summary .bad {
+  color: var(--red);
+  font-weight: 600;
+}
+.plan-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+.save-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.save-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.save-range {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+@media (min-width: 960px) {
+  .plan-bar {
+    bottom: 1rem;
+  }
+}
+@media (max-width: 380px) {
+  .tabs button {
+    font-size: 0.68rem;
+  }
+}
+
+.pass.solo .pass-stub {
+  align-items: center;
+}
+.pass-cost.big {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.plan-loss {
+  background: var(--amber-wash);
+  color: var(--amber-ink);
+  border-left: 4px solid var(--amber);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.5rem 0.75rem 0.4rem;
+  font-weight: 600;
+  max-width: 60ch;
+}
+
+/* Three months at once: stacked on phones, side by side on wide screens */
+.months {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+}
+.month h3 {
+  font-size: 1rem;
+  margin: 0.15rem 0.2rem 0.45rem;
+}
+@media (min-width: 960px) {
+  .plan {
+    max-width: 1120px;
+  }
+  .months {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+  .cal-day {
+    min-height: 50px;
+  }
+}
+.cal-day.picked {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #1d1400;
+}
+.cal-day.picked .cal-bal {
+  color: color-mix(in srgb, #1d1400 70%, transparent);
+}
+.cal-day.picked.half {
+  background: linear-gradient(to top, var(--amber) 50%, var(--surface) 50%);
+  border-color: var(--amber);
+  color: var(--ink);
+}
+.cal-day.picked.half .cal-bal {
+  color: #1d1400;
+}
+.key.picked {
+  background: var(--amber);
+}
+.key.half {
+  background: linear-gradient(to top, var(--amber) 50%, var(--surface) 50%);
+  box-shadow: inset 0 0 0 1.5px var(--amber);
+}
+
+/* Planned time off: solid navy; free days inside it (weekends, holidays) stay quiet; half days fill half. */
+.cal-day.trip {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--page);
+}
+.cal-day.trip.off {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  border-color: transparent;
+  color: var(--ink-3);
+}
+.cal-day.trip.trip-half {
+  background: linear-gradient(to top, var(--ink) 50%, var(--surface) 50%);
+  color: var(--ink);
+}
+.key.booked {
+  background: var(--ink);
+}
+/* The next month's first week (and the previous month's last days) on phones */
+.cal-day.adjacent:not(.trip):not(.picked):not(.short):not(.past):not(.off) {
+  background: color-mix(in srgb, var(--ink) 3%, var(--surface));
+}
+.cal-num small {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--amber-ink);
+}
+.cal-bal {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.month-jump select {
+  border: 0;
+  background: transparent;
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-align: center;
+  text-align-last: center;
+  padding: 0.3rem 0.5rem;
+  min-height: 40px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.month-jump select:hover {
+  background: var(--line-soft);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.calendar {
+  touch-action: pan-y;
+}
+.inline-num input {
+  width: 4.5rem;
+  text-align: center;
+  padding-inline: 0.4rem;
+}
+.half-note {
+  flex-basis: 100%;
+}
+.impact p {
+  margin: 0;
+}
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 7rem);
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--ink);
+  color: var(--page);
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem 0.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  box-shadow: 0 8px 24px rgb(10 18 30 / 0.25);
+  max-width: calc(100vw - 2rem);
+}
+.toast .link {
+  color: var(--amber);
+}
+@media (min-width: 960px) {
+  .toast {
+    bottom: 7rem;
+  }
 }

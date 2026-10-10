@@ -1,10 +1,9 @@
--- Runway: shared PTO plans for a household.
+-- Runway: your PTO plan, synced across your devices.
 -- Run this once in the Supabase SQL editor (Database → SQL Editor → New query).
 --
--- Design: a household's plan (people, policies, trips) is one JSON document.
--- Two people editing a vacation plan rarely collide, so last write wins and
--- realtime pushes each save to the other phone. Access is enforced in Postgres
--- with row-level security: you can only read or change households you belong to.
+-- Design: a plan (rules and trips) is one JSON document. Last write wins, and
+-- realtime pushes each save to your other devices. Access is enforced in
+-- Postgres with row-level security: you can only read or change your own plan.
 
 create table if not exists public.households (
   id uuid primary key default gen_random_uuid(),
@@ -24,18 +23,8 @@ create table if not exists public.household_members (
   primary key (household_id, user_id)
 );
 
-create table if not exists public.household_invites (
-  code text primary key,
-  household_id uuid not null references public.households (id) on delete cascade,
-  created_by uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  expires_at timestamptz not null default now() + interval '14 days',
-  used_by uuid references auth.users (id) on delete set null,
-  used_at timestamptz
-);
-
 alter table public.households enable row level security;
 alter table public.household_members enable row level security;
-alter table public.household_invites enable row level security;
 
 -- Membership check used by every policy. Security definer so it can read
 -- household_members without recursing through that table's own policy.
@@ -72,10 +61,6 @@ drop policy if exists "members can leave" on public.household_members;
 create policy "members can leave" on public.household_members
   for delete using (user_id = auth.uid());
 
-drop policy if exists "members see invites" on public.household_invites;
-create policy "members see invites" on public.household_invites
-  for select using (public.is_household_member(household_id));
-
 -- Stamp every save.
 create or replace function public.touch_household()
 returns trigger
@@ -92,8 +77,7 @@ drop trigger if exists households_touch on public.households;
 create trigger households_touch before update on public.households
   for each row execute function public.touch_household();
 
--- Inserts go through these functions so a household and its owner are
--- created together, and joining requires a valid invite code.
+-- Inserts go through this function so a plan and its owner are created together.
 
 create or replace function public.create_household(p_name text, p_data jsonb)
 returns uuid
@@ -116,60 +100,9 @@ begin
 end;
 $$;
 
-create or replace function public.create_invite(p_household uuid)
-returns text
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  new_code text;
-begin
-  if not public.is_household_member(p_household) then
-    raise exception 'Not a member of this household';
-  end if;
-  new_code := substr(replace(gen_random_uuid()::text, '-', ''), 1, 10);
-  insert into public.household_invites (code, household_id, created_by)
-  values (new_code, p_household, auth.uid());
-  return new_code;
-end;
-$$;
-
-create or replace function public.accept_invite(p_code text)
-returns uuid
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  inv public.household_invites%rowtype;
-begin
-  if auth.uid() is null then
-    raise exception 'Sign in first';
-  end if;
-  select * into inv from public.household_invites where code = p_code;
-  if not found then
-    raise exception 'That invite link is not valid';
-  end if;
-  if inv.used_by is not null and inv.used_by <> auth.uid() then
-    raise exception 'That invite link was already used';
-  end if;
-  if inv.expires_at < now() then
-    raise exception 'That invite link has expired';
-  end if;
-  insert into public.household_members (household_id, user_id, role)
-  values (inv.household_id, auth.uid(), 'member')
-  on conflict do nothing;
-  update public.household_invites set used_by = auth.uid(), used_at = now() where code = p_code;
-  return inv.household_id;
-end;
-$$;
-
 revoke all on function public.create_household(text, jsonb) from anon;
-revoke all on function public.create_invite(uuid) from anon;
-revoke all on function public.accept_invite(text) from anon;
 
--- Push each save to the other person's phone.
+-- Push each save to your other devices.
 do $$
 begin
   alter publication supabase_realtime add table public.households;

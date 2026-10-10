@@ -151,6 +151,15 @@ describe('household planning', () => {
     expect(forecastMember(member(), [trip('t', prevStart, prevEnd)], opts).firstBelowBuffer).not.toBeNull();
   });
 
+  it('never suggests dates that overlap a trip already planned', () => {
+    const rich: Member = { ...member({ startBalance: 200 }) };
+    const planned: Household = { ...h, members: [rich], trips: [trip('booked', '2026-10-01', '2026-10-09')] };
+    const r = findEarliest(planned, { memberIds: ['max'], workdays: 5, from: '2026-09-28', until: '2027-09-30' });
+    if (!r.ok) throw new Error('expected a result');
+    expect(r.start > '2026-10-09' || r.end < '2026-10-01').toBe(true);
+    expect(r.start).toBe('2026-10-12');
+  });
+
   it('explains when existing plans already break someone’s buffer', () => {
     const busy: Household = { ...h, trips: [trip('big', '2026-09-21', '2026-09-25')] };
     const r = findEarliest(busy, { memberIds: ['max'], workdays: 1, ...opts });
