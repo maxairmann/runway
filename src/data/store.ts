@@ -8,7 +8,7 @@ import * as sync from './sync';
 
 export type Mode = 'demo' | 'local' | 'cloud';
 
-export type CloudPhase = 'idle' | 'checking' | 'signed-out' | 'no-household' | 'ready' | 'error';
+export type CloudPhase = 'idle' | 'checking' | 'signed-out' | 'set-password' | 'no-household' | 'ready' | 'error';
 
 export interface CloudState {
   phase: CloudPhase;
@@ -87,6 +87,11 @@ export function useStore() {
         return;
       }
       const email = session.user.email ?? undefined;
+      if (sync.needsNewPassword(session)) {
+        setHousehold(null);
+        setCloud((c) => ({ ...c, phase: 'set-password', email }));
+        return;
+      }
       const loaded = await sync.loadHousehold();
       if (!loaded) {
         setHousehold(null);
@@ -107,8 +112,6 @@ export function useStore() {
     let off: (() => void) | undefined;
     void sync
       .onAuthChange((event) => {
-        // A magic link opened in this tab signs in after the first check.
-        if (event === 'SIGNED_IN' && phaseRef.current === 'signed-out') void refreshCloud();
         if (event === 'SIGNED_OUT') {
           setHousehold(null);
           setCloud((c) => ({ ...c, phase: 'signed-out', email: undefined }));
@@ -192,9 +195,14 @@ export function useStore() {
   }, []);
 
   const cloudActions = {
-    sendLink: (email: string) => sync.sendMagicLink(email),
-    /** The auth listener loads the plan once this signs in. */
-    verifyCode: (email: string, code: string) => sync.verifyCode(email, code),
+    signIn: async (email: string, password: string) => {
+      await sync.signInWithPassword(email, password);
+      await refreshCloud();
+    },
+    setPassword: async (password: string) => {
+      await sync.setPassword(password);
+      await refreshCloud();
+    },
     signOut: async () => {
       await sync.signOut();
       setHousehold(null);

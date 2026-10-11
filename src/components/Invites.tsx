@@ -5,15 +5,18 @@ import { listInvitees, removeInvitee, sendInvite, type Invitee } from '../data/s
 const day = (iso: string) => formatDate(iso.slice(0, 10), 'medium');
 
 /**
- * Admin only: invite people by email and see who has signed in. For anyone else the
- * endpoint answers 403 and this section doesn't render. Plans stay private either way.
+ * Admin only: add people and see who has signed in. For anyone else the endpoint
+ * answers 403 and this section doesn't render. Plans stay private either way.
+ * Nothing is emailed: you get a temporary password to text them.
  */
 export function Invites() {
   const [people, setPeople] = useState<Invitee[] | null>(null);
   const [hidden, setHidden] = useState(false);
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [note, setNote] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [issued, setIssued] = useState<{ email: string; password: string; existed: boolean } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
 
   const load = () =>
@@ -21,7 +24,7 @@ export function Invites() {
       .then(setPeople)
       .catch((e: Error & { status?: number }) => {
         if (e.status === 403 || e.status === 404 || e.status === 501) setHidden(true);
-        else setNote({ text: e.message, bad: true });
+        else setError(e.message);
       });
 
   useEffect(() => {
@@ -30,17 +33,24 @@ export function Invites() {
 
   if (hidden) return null;
 
-  const invite = async (to: string) => {
+  const site = window.location.origin;
+  const message = (i: { email: string; password: string; existed: boolean }) =>
+    i.existed
+      ? `Your new temporary Runway password is ${i.password}\n\nSign in at ${site} with ${i.email}, and you'll be asked to choose your own password.`
+      : `I set you up on Runway, a planner for your PTO: ${site}\n\nEmail: ${i.email}\nTemporary password: ${i.password}\n\nOn iPhone: open the link in Safari, tap Share → Add to Home Screen, then open Runway from your home screen and tap "Sign in to sync your plan". You'll choose your own password after signing in.`;
+
+  const issue = async (to: string) => {
     setBusy(to);
-    setNote(null);
+    setError(null);
+    setCopied(false);
     try {
       const r = await sendInvite(to);
-      setNote({ text: r.resent ? `Sent ${to} a new sign-in code.` : `Invited ${to}. They’ll get an email with a sign-in code.` });
+      setIssued({ email: to, password: r.password, existed: r.existed });
       setEmail('');
+      setConfirming(null);
       await load();
     } catch (e) {
-      setNote({ text: (e as Error).message, bad: true });
-      await load();
+      setError((e as Error).message);
     } finally {
       setBusy(null);
     }
@@ -48,40 +58,84 @@ export function Invites() {
 
   const remove = async (to: string) => {
     setBusy(to);
-    setNote(null);
+    setError(null);
     try {
       await removeInvitee(to);
-      setNote({ text: `Removed ${to}.` });
       setConfirming(null);
+      if (issued?.email === to) setIssued(null);
       await load();
     } catch (e) {
-      setNote({ text: (e as Error).message, bad: true });
+      setError((e as Error).message);
     } finally {
       setBusy(null);
+    }
+  };
+
+  const share = async () => {
+    if (!issued) return;
+    const text = message(issued);
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch {
+      return; // share sheet dismissed
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setError('Couldn’t copy. Select the message and copy it by hand.');
     }
   };
 
   return (
     <section className="invites">
       <h2>Invites</h2>
-      <p className="hint">Only people you invite can sign in. Each person gets their own private plan; you see who’s joined, not their plans.</p>
+      <p className="hint">
+        Only people you add can sign in. You get a temporary password to text them; they choose their own on first sign-in. Each person’s
+        plan is private.
+      </p>
       <form
         className="row end"
         onSubmit={(e) => {
           e.preventDefault();
           const to = email.trim().toLowerCase();
-          if (to) void invite(to);
+          if (to) void issue(to);
         }}
       >
         <label className="field">
-          <span className="label">Email</span>
+          <span className="label">Their email</span>
           <input id="invite-email" type="email" required autoComplete="off" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         <button type="submit" className="primary" disabled={busy !== null || !email.trim()}>
-          {busy === email.trim().toLowerCase() ? 'Sending…' : 'Send invite'}
+          {busy === email.trim().toLowerCase() ? 'Adding…' : 'Add person'}
         </button>
       </form>
-      {note ? <p className={note.bad ? 'error' : 'ok-line'}>{note.text}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
+
+      {issued ? (
+        <div className="issued" role="status">
+          <p>
+            <strong>{issued.existed ? `New temporary password for ${issued.email}` : `${issued.email} can sign in now`}</strong>
+          </p>
+          <p className="issued-pass">
+            <span className="label">Temporary password</span>
+            <code>{issued.password}</code>
+          </p>
+          <textarea readOnly rows={5} value={message(issued)} aria-label="Message to send" />
+          <div className="button-row">
+            <button type="button" className="primary" onClick={() => void share()}>
+              {copied ? 'Copied' : 'Text it to them'}
+            </button>
+            <button type="button" className="ghost" onClick={() => setIssued(null)}>
+              Done
+            </button>
+          </div>
+          <p className="hint">You won’t see this password again. If it’s lost, give them a new one below.</p>
+        </div>
+      ) : null}
 
       {people === null ? (
         <p className="hint">Loading…</p>
@@ -93,9 +147,7 @@ export function Invites() {
             <li key={p.email}>
               <span className="invite-who">
                 <strong>{p.email}</strong>
-                <small>
-                  {p.lastSignIn ? `Joined · last signed in ${day(p.lastSignIn)}` : `Invited ${day(p.invitedAt)} · hasn’t signed in yet`}
-                </small>
+                <small>{p.lastSignIn ? `Last signed in ${day(p.lastSignIn)}` : `Added ${day(p.invitedAt)} · hasn’t signed in yet`}</small>
               </span>
               {confirming === p.email ? (
                 <span className="invite-actions">
@@ -108,11 +160,9 @@ export function Invites() {
                 </span>
               ) : (
                 <span className="invite-actions">
-                  {!p.lastSignIn ? (
-                    <button type="button" className="link" disabled={busy !== null} onClick={() => void invite(p.email)}>
-                      {busy === p.email ? 'Sending…' : 'Resend'}
-                    </button>
-                  ) : null}
+                  <button type="button" className="link" disabled={busy !== null} onClick={() => void issue(p.email)}>
+                    {busy === p.email ? 'Working…' : 'New password'}
+                  </button>
                   <button type="button" className="link danger-link" onClick={() => setConfirming(p.email)}>
                     Remove
                   </button>
@@ -122,7 +172,6 @@ export function Invites() {
           ))}
         </ul>
       )}
-      <p className="hint">The code in an invite works for an hour. After that, they can ask for a new one on the sign-in screen.</p>
     </section>
   );
 }

@@ -33,8 +33,8 @@ export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigur
 export function CloudGate({ store, onBack }: { store: Store; onBack: () => void }) {
   const { cloud, cloudActions, localPlan } = store;
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setup, setSetup] = useState(false);
@@ -83,69 +83,71 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
           Back
         </button>
         <h1>Sign in</h1>
-        {sent ? (
-          <form
-            className="welcome-actions"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(() => cloudActions.verifyCode(email.trim(), code.trim()));
-            }}
-          >
-            <p className="lead">We emailed {email} a sign-in code. Enter it here.</p>
-            <label className="field">
-              <span className="label">Code</span>
-              <input
-                id="signin-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                pattern="[0-9]*"
-                maxLength={10}
-                required
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              />
-            </label>
-            {error ? <p className="error">{error}</p> : null}
-            <button type="submit" className="primary wide" disabled={busy || code.length < 6}>
-              {busy ? 'Signing in…' : 'Sign in'}
-            </button>
-            <p className="hint">
-              On a computer you can also just click the link in the email.{' '}
-              <button
-                type="button"
-                className="link"
-                onClick={() => {
-                  setSent(false);
-                  setCode('');
-                  setError(null);
-                }}
-              >
-                Use a different email
-              </button>
-            </p>
-          </form>
-        ) : (
-          <form
-            className="welcome-actions"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(async () => {
-                await cloudActions.sendLink(email.trim());
-                setSent(true);
-              });
-            }}
-          >
-            <p className="lead">We’ll email you a sign-in code. No password.</p>
-            <label className="field">
-              <span className="label">Email</span>
-              <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </label>
-            {error ? <p className="error">{error}</p> : null}
-            <button type="submit" className="primary wide" disabled={busy}>
-              {busy ? 'Sending…' : 'Email me a code'}
-            </button>
-          </form>
-        )}
+        <form
+          className="welcome-actions"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(() => cloudActions.signIn(email.trim(), password));
+          }}
+        >
+          <p className="lead">Use the email and password you were given. Runway is invite-only.</p>
+          <label className="field">
+            <span className="label">Email</span>
+            <input id="signin-email" type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="label">Password</span>
+            <input
+              id="signin-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          {error ? <p className="error">{error}</p> : null}
+          <button type="submit" className="primary wide" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+          <p className="hint">Forgot it? Ask whoever invited you for a new temporary password.</p>
+        </form>
+      </main>
+    );
+  }
+
+  if (cloud.phase === 'set-password') {
+    const tooShort = newPassword.length > 0 && newPassword.length < 8;
+    return (
+      <main className="welcome">
+        <h1>Choose your password</h1>
+        <form
+          className="welcome-actions"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (newPassword.length >= 8) void run(() => cloudActions.setPassword(newPassword));
+          }}
+        >
+          <p className="lead">You signed in with a temporary password. Pick one only you know.</p>
+          {cloud.email ? <input type="email" autoComplete="username" value={cloud.email} readOnly hidden /> : null}
+          <label className="field">
+            <span className="label">New password</span>
+            <input
+              id="new-password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </label>
+          {tooShort ? <p className="hint">At least 8 characters.</p> : null}
+          {error ? <p className="error">{error}</p> : null}
+          <button type="submit" className="primary wide" disabled={busy || newPassword.length < 8}>
+            {busy ? 'Saving…' : 'Save and continue'}
+          </button>
+        </form>
       </main>
     );
   }

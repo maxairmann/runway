@@ -2146,3 +2146,32 @@ input[type='checkbox'] {
   color: var(--green);
   font-weight: 600;
 }
+.issued {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.4rem 0 1rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-wash);
+}
+.issued p {
+  margin: 0;
+}
+.issued-pass {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.issued-pass code {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+.issued textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}

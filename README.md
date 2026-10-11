@@ -20,7 +20,7 @@ It started as a Google Sheet my wife and I used to plan a year of time off. The 
 - **When can I go?** Ask for N workdays and get the first stretch that fits, counting trips already planned.
 - **Paystub corrections.** Enter your real balance on any date and the forecast re-anchors there.
 - **Undo.** Deleting a trip or clearing your picks can be undone.
-- **Sync (optional).** Sign in with an emailed code to use the same plan on your phone and laptop.
+- **Sync (optional, invite-only).** The admin adds people and texts them a temporary password; they pick their own on first sign-in. No email service needed.
 - **Installable.** Add it to an Android or iPhone home screen; it opens full-screen and works offline.
 
 ## How the forecast works
@@ -70,20 +70,18 @@ Open the printed URL. To try it on your phone on the same Wi-Fi, run `npm run de
 
 ## Turn on sync (optional, invite-only)
 
-Synced plans are invite-only: sign-ups are off, and one admin invites people by email from Settings. Each person gets their own private plan.
+Synced plans are invite-only. One admin adds people from Settings → Invites and gets a temporary password to pass on (text it, say it); the person chooses their own password the first time they sign in. Nothing is emailed, so there's no email service to set up. Each person's plan is private.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run `supabase/schema.sql`.
-3. **Email.** Supabase's built-in email only reaches members of your Supabase team, so add your own SMTP under Authentication → Emails → SMTP Settings. For a personal app, Gmail works: host `smtp.gmail.com`, port `465`, your Gmail address as username and sender, and a [Google app password](https://myaccount.google.com/apppasswords) as the password.
-4. **Email template.** Under Authentication → Emails → Magic Link, paste `supabase/email-sign-in.html` as the body. It carries a 6-digit code: on iPhone, an app saved to the home screen doesn't share a sign-in with Safari, so people sign in by typing the code.
-5. **Invite-only.** Under Authentication → Users, add yourself (Add user → Create new user, auto-confirm). Then turn off "Allow new users to sign up" (Authentication → Sign In / Providers).
-6. Under Authentication → URL Configuration, set the Site URL to your deployed URL.
-7. Set the environment variables (in Vercel, or `.env.local` for the app):
-   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` from Project Settings → API.
-   - `SUPABASE_SERVICE_ROLE_KEY` (server only, for `api/invite.js`; never prefix it with `VITE_`).
-   - `ADMIN_EMAIL`: the email allowed to send invites.
+3. Under Authentication → Users, add yourself: Add user → Create new user, with your email and a password, and auto-confirm on.
+4. Turn off "Allow new users to sign up" (Authentication → Sign In / Providers), so only people the admin adds can get in.
+5. Set the environment variables (in Vercel, or `.env.local` for the app):
+   - `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the publishable key) from Project Settings → API Keys.
+   - `SUPABASE_SERVICE_ROLE_KEY`: the secret key. Server only, for `api/invite.js`; never prefix it with `VITE_`.
+   - `ADMIN_EMAIL`: the email you sign in with. It's only an identifier; nothing is sent to it.
 
-Invites go through a Vercel serverless function (`api/invite.js`). It checks the caller's sign-in against `ADMIN_EMAIL`, creates the account, and sends the sign-in email. `npm run dev` doesn't run it, so the Invites section only appears on Vercel (or under `vercel dev`).
+Invites go through a Vercel serverless function (`api/invite.js`). It checks the caller's sign-in against `ADMIN_EMAIL`, then creates the account or resets its password. `npm run dev` doesn't run it, so the Invites section only appears on Vercel (or under `vercel dev`).
 
 ## Deploy
 

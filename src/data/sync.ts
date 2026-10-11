@@ -14,7 +14,7 @@ let clientPromise: Promise<SupabaseClient> | null = null;
 function client(): Promise<SupabaseClient> {
   if (!cloudConfigured) return Promise.reject(new Error('Sharing is not set up on this site.'));
   clientPromise ??= import('@supabase/supabase-js').then(({ createClient }) =>
-    createClient(url as string, anonKey as string, { auth: { persistSession: true, detectSessionInUrl: true } }),
+    createClient(url as string, anonKey as string, { auth: { persistSession: true, detectSessionInUrl: false } }),
   );
   return clientPromise;
 }
@@ -42,24 +42,23 @@ export async function onAuthChange(cb: (event: string, session: Session | null) 
   return () => data.subscription.unsubscribe();
 }
 
-export async function sendMagicLink(email: string): Promise<void> {
+/** Sign in with the email and password the admin set up (or the one you chose). */
+export async function signInWithPassword(email: string, password: string): Promise<void> {
   const sb = await client();
-  const redirect = window.location.origin + window.location.pathname;
-  // Invite-only: never create an account here. The admin invites people (api/invite.js).
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect, shouldCreateUser: false } });
-  if (error && /sign ?ups? not allowed|otp_disabled|user not found/i.test(`${error.message} ${(error as { code?: string }).code ?? ''}`)) {
-    throw new Error('That email hasn’t been invited yet. Ask the person who shared Runway with you for an invite.');
-  }
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error && /invalid login credentials/i.test(error.message)) throw new Error('That email and password don’t match. Check both, or ask for a new temporary password.');
   fail(error);
 }
 
-/**
- * Sign in with the code from the same email. Needed on iPhone: a link opens in Safari,
- * which doesn't share a sign-in with the app saved to the home screen.
- */
-export async function verifyCode(email: string, code: string): Promise<void> {
+/** True when the admin set a temporary password that the person hasn't replaced yet. */
+export function needsNewPassword(session: Session): boolean {
+  return session.user.user_metadata?.temp_password === true;
+}
+
+/** Choose your own password (also clears the temporary-password flag). */
+export async function setPassword(password: string): Promise<void> {
   const sb = await client();
-  const { error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+  const { error } = await sb.auth.updateUser({ password, data: { temp_password: false } });
   fail(error);
 }
 
@@ -89,7 +88,8 @@ async function inviteApi<T>(method: 'GET' | 'POST' | 'DELETE', email?: string): 
 }
 
 export const listInvitees = () => inviteApi<{ users: Invitee[] }>('GET').then((b) => b.users);
-export const sendInvite = (email: string) => inviteApi<{ ok: true; resent: boolean }>('POST', email);
+/** Creates the account (or resets its password) and returns the temporary password to pass on. */
+export const sendInvite = (email: string) => inviteApi<{ ok: true; existed: boolean; password: string }>('POST', email);
 export const removeInvitee = (email: string) => inviteApi<{ ok: true }>('DELETE', email);
 
 export async function signOut(): Promise<void> {
