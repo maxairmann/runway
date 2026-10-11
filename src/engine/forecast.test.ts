@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findEarliest, forecastMember, tripCost, tripImpact } from './forecast';
+import { findEarliest, forecastMember, overdrawnFrom, tripCost, tripImpact, worstShortfall } from './forecast';
 import { presetHolidays } from './holidays';
 import { addDays, toDay, weekdayOf } from './dates';
 import type { Household, Member, Trip } from './types';
@@ -160,10 +160,36 @@ describe('household planning', () => {
     expect(r.start).toBe('2026-10-12');
   });
 
-  it('explains when existing plans already break someone’s buffer', () => {
-    const busy: Household = { ...h, trips: [trip('big', '2026-09-21', '2026-09-25')] };
+  it('looks past a shortfall already planned instead of giving up', () => {
+    const big = trip('big', '2026-09-21', '2026-09-25');
+    const busy: Household = { ...h, trips: [big] };
     const r = findEarliest(busy, { memberIds: ['max'], workdays: 1, ...opts });
-    expect(r).toEqual({ ok: false, reason: 'already-below', memberId: 'max', date: '2026-09-21' });
+    if (!r.ok) throw new Error('expected a result');
+    const f = forecastMember(member(), [big, trip('t', r.start, r.end)], opts);
+    expect(overdrawnFrom(f, member(), r.start)).toBeNull();
+    // Starting a day earlier would leave a day short.
+    expect(r.start > '2026-09-25').toBe(true);
+  });
+
+  it('searches forward from the date you ask for', () => {
+    const r = findEarliest(h, { memberIds: ['max'], workdays: 5, from: '2027-07-31', until: '2028-09-30' });
+    if (!r.ok) throw new Error('expected a result');
+    expect(r.start >= '2027-08-01').toBe(true);
+  });
+
+  it('flags a trip that leaves you short even when the plan was already short', () => {
+    const big = trip('big', '2026-09-21', '2026-09-25');
+    const later = trip('later', '2026-09-28', '2026-09-28');
+    const impact = tripImpact({ ...h, trips: [big] }, later, opts);
+    expect(impact[0].overdraws).toBe(true);
+  });
+
+  it('finds the worst shortfall, not the first', () => {
+    const f = forecastMember(member(), [trip('a', '2026-09-21', '2026-09-21'), trip('b', '2026-09-28', '2026-10-02')], opts);
+    const w = worstShortfall(f, member(), opts.from)!;
+    expect(f.firstOverdrawn).toBe('2026-09-21');
+    expect(w.date).toBe('2026-10-02');
+    expect(w.hours).toBeCloseTo(-f.balanceOn('2026-10-02'), 6);
   });
 
   it('shows the impact of a draft trip per person', () => {

@@ -43,17 +43,17 @@ export function TripEditor({
   const problem = impact.some((i) => i.overdraws);
   const halfDays = (draft.halfDays ?? []).filter((d) => d >= draft.start && d <= draft.end);
 
-  // When the trip doesn't fit, look for the first dates of the same length that do.
+  // When the trip doesn't fit, look for the next dates of the same length that do, starting from the dates asked for.
   const suggestion = useMemo(() => {
     if (!problem) return null;
+    const work = household.members[0].policy.workDays;
     let workdays = 0;
-    for (let n = toDay(draft.start); n <= toDay(draft.end); n++) {
-      const wd = weekdayOf(n);
-      if (wd !== 0 && wd !== 6) workdays++;
-    }
+    for (let n = toDay(draft.start); n <= toDay(draft.end); n++) if (work.includes(weekdayOf(n))) workdays++;
     if (workdays === 0) return null;
     const others = { ...household, trips: household.trips.filter((t) => t.id !== draft.id) };
-    const r = findEarliest(others, { memberIds: draft.memberIds, workdays, from: today, until, hoursPerDay: draft.hoursPerDay });
+    const dayBefore = addDays(draft.start, -1);
+    const from = dayBefore > today ? dayBefore : today;
+    const r = findEarliest(others, { memberIds: draft.memberIds, workdays, from, until, hoursPerDay: draft.hoursPerDay });
     return r.ok ? r : null;
   }, [problem, household, draft, today, until]);
 
@@ -138,19 +138,21 @@ export function TripEditor({
               <p key={i.memberId}>
                 You use {amount(i.cost, pd, units)}, leaving {amount(left, pd, units)} after.
                 {newLow ? ` New lowest point: ${amount(i.after.low.balance, pd, units)} on ${formatDate(i.after.low.date, 'short')}.` : ''}
-                {i.overdraws ? <em className="bad"> Puts you below zero on {formatDate(i.after.firstOverdrawn!, 'medium')}.</em> : null}
+                {i.overdrawnOn ? <em className="bad"> You’d be below zero on {formatDate(i.overdrawnOn, 'medium')}.</em> : null}
               </p>
             );
           })}
           {suggestion ? (
             <p className="suggest">
-              Earliest dates of the same length that work: {formatRange(suggestion.start, suggestion.end)}.{' '}
+              {toDay(suggestion.start) - toDay(draft.start) > 31
+                ? `Nothing near these dates fits with the time off planned before them. The next dates that do: ${formatRange(suggestion.start, suggestion.end)}.`
+                : `Next dates of the same length that work: ${formatRange(suggestion.start, suggestion.end)}.`}{' '}
               <button type="button" className="link" onClick={() => set({ start: suggestion.start, end: suggestion.end })}>
                 Move it there
               </button>
             </p>
           ) : null}
-          <p className="hint">Weekends and holidays are free.</p>
+          <p className="hint">Weekends and paid holidays are free.</p>
         </section>
       ) : (
         <p className="hint">Make sure the last day isn't before the first.</p>

@@ -239,6 +239,26 @@ export function forecastMember(member: Member, trips: Trip[], opts: ForecastOpti
   };
 }
 
+/** The first day on or after `date` below what the employer allows, or null. */
+export function overdrawnFrom(f: MemberForecast, member: Member, date: ISODate): ISODate | null {
+  const floor = -member.policy.allowNegative - 1e-9;
+  for (let i = Math.max(0, toDay(date) - f.startDay); i < f.balances.length; i++) {
+    if (f.balances[i] < floor) return fromDay(f.startDay + i);
+  }
+  return null;
+}
+
+/** The worst shortfall on or after `from`: how far below the allowed floor, and when. Null if there is none. */
+export function worstShortfall(f: MemberForecast, member: Member, from: ISODate): { date: ISODate; hours: number } | null {
+  const floor = -member.policy.allowNegative;
+  let worst: { date: ISODate; hours: number } | null = null;
+  for (let i = Math.max(0, toDay(from) - f.startDay); i < f.balances.length; i++) {
+    const short = floor - f.balances[i];
+    if (short > 1e-9 && (!worst || short > worst.hours + 1e-9)) worst = { date: fromDay(f.startDay + i), hours: short };
+  }
+  return worst;
+}
+
 export function forecastHousehold(h: Household, opts: ForecastOptions): Record<string, MemberForecast> {
   const out: Record<string, MemberForecast> = {};
   for (const m of h.members) out[m.id] = forecastMember(m, h.trips, opts);
@@ -252,8 +272,10 @@ export interface TripImpact {
   after: MemberForecast;
   /** The trip pushes this person under their buffer (and they weren't already). */
   breaksBuffer: boolean;
-  /** The trip pushes this person past what the employer allows. */
+  /** From the trip's first day on, this person would be past what the employer allows. */
   overdraws: boolean;
+  /** The first such day. */
+  overdrawnOn: ISODate | null;
 }
 
 /** Compare the forecast with and without a draft trip (a new trip, or an edit of an existing one). */
@@ -270,21 +292,21 @@ export function tripImpact(h: Household, draft: Trip, opts: ForecastOptions): Tr
         before,
         after,
         breaksBuffer: after.firstBelowBuffer !== null && before.firstBelowBuffer === null,
-        overdraws: after.firstOverdrawn !== null && before.firstOverdrawn === null,
+        overdrawnOn: overdrawnFrom(after, m, draft.start),
+        overdraws: overdrawnFrom(after, m, draft.start) !== null,
       };
     });
 }
 
 export type EarliestResult =
   | { ok: true; start: ISODate; end: ISODate }
-  /** Someone is already under their buffer from existing plans. */
-  | { ok: false; reason: 'already-below'; memberId: string; date: ISODate }
   /** No start date before the horizon works. */
   | { ok: false; reason: 'none' };
 
 /**
- * The first start date (a workday for everyone going) where a trip of `workdays`
- * workdays keeps everyone at or above their buffer through `until`.
+ * The first start date after `from` (a workday for everyone going) where a trip of
+ * `workdays` workdays keeps everyone within what their employer allows, from the
+ * trip's first day through `until`. A shortfall earlier than the trip doesn't block it.
  */
 export function findEarliest(
   h: Household,
@@ -296,10 +318,17 @@ export function findEarliest(
   const opts: ForecastOptions = { from: params.from, until: params.until };
   const lastStart = toDay(params.until) - 1;
 
-  // Someone already under their buffer without the trip can never pass.
+  // A trip can't start before the last day someone is already short: it would only make that worse.
+  let clearFrom = toDay(params.from) + 1;
   for (const m of members) {
-    const below = forecastMember(m, h.trips, opts).firstBelowBuffer;
-    if (below !== null) return { ok: false, reason: 'already-below', memberId: m.id, date: below };
+    const f = forecastMember(m, h.trips, opts);
+    const floor = -m.policy.allowNegative - 1e-9;
+    for (let i = f.balances.length - 1; i >= 0; i--) {
+      if (f.balances[i] < floor) {
+        clearFrom = Math.max(clearFrom, f.startDay + i + 1);
+        break;
+      }
+    }
   }
 
   // Days already taken by a trip for anyone going can't be part of a new one.
@@ -309,7 +338,7 @@ export function findEarliest(
     for (let n = toDay(t.start); n <= toDay(t.end); n++) taken.add(n);
   }
 
-  for (let s = toDay(params.from) + 1; s <= lastStart; s++) {
+  for (let s = clearFrom; s <= lastStart; s++) {
     if (!isWork(s) || taken.has(s)) continue;
     let count = 0;
     let e = s;
@@ -332,7 +361,7 @@ export function findEarliest(
       hoursPerDay: params.hoursPerDay ?? null,
       status: 'tentative',
     };
-    const ok = members.every((m) => forecastMember(m, [...h.trips, trial], opts).firstBelowBuffer === null);
+    const ok = members.every((m) => overdrawnFrom(forecastMember(m, [...h.trips, trial], opts), m, trial.start) === null);
     if (ok) return { ok: true, start: trial.start, end: trial.end };
   }
   return { ok: false, reason: 'none' };

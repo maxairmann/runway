@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, formatDate, fromDay, partsOf, toDay, weekdayOf, type ISODate } from '../engine/dates';
-import { forecastMember, forecastSick, nextLoss, type ForecastOptions } from '../engine/forecast';
+import { forecastMember, forecastSick, nextLoss, overdrawnFrom, worstShortfall, type ForecastOptions } from '../engine/forecast';
 import { labeledHolidays, paidNames, type HolidayGroup } from '../engine/holidays';
 import { cycleDay, holidaySets, isWorkday, monthGrid, setDayKind, splitDaysOff, tripsFromSplit, type DaysOff } from '../engine/plan';
 import type { Household } from '../engine/types';
@@ -82,6 +82,16 @@ function Car() {
 }
 
 const HOLD_MS = 450;
+
+/** "May 17–21", "Mar 30 – Apr 2", or "Oct 7". */
+function shortRange(start: ISODate, end: ISODate): string {
+  const a = partsOf(toDay(start));
+  const b = partsOf(toDay(end));
+  const mon = (m: number) => MONTHS[m - 1].slice(0, 3);
+  if (start === end) return `${mon(a.m)} ${a.d}`;
+  if (a.m === b.m && a.y === b.y) return `${mon(a.m)} ${a.d}–${b.d}`;
+  return `${mon(a.m)} ${a.d} – ${mon(b.m)} ${b.d}`;
+}
 
 interface DayHoliday {
   name: string;
@@ -198,6 +208,27 @@ export function PlanView({
 
   const floor = -me.policy.allowNegative;
 
+  // When the plan runs short: the worst point, and earlier time off (not itself short) whose removal would help there.
+  const shortfall = useMemo(() => {
+    const worst = worstShortfall(forecast, me, today);
+    if (!worst) return null;
+    const separate = !!me.sick?.separate;
+    const helpers = household.trips
+      .filter((t) => t.end >= today && t.start <= worst.date && !(t.sick && separate))
+      .filter((t) => {
+        const firstShort = overdrawnFrom(forecast, me, t.start);
+        return firstShort === null || firstShort > t.end; // its own days aren't red
+      })
+      .map((t) => {
+        const without = forecastMember(me, household.trips.filter((x) => x.id !== t.id), opts);
+        return { trip: t, frees: without.balanceOn(worst.date) - forecast.balanceOn(worst.date) };
+      })
+      .filter((x) => x.frees > 0.05)
+      .sort((a, b) => b.frees - a.frees)
+      .slice(0, 3);
+    return { ...worst, helpers };
+  }, [forecast, household.trips, me, today]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const save = (next: DaysOff, d: ISODate) => {
     const share = next.pto[d] ?? next.sick[d];
     if (share && (share !== (daysOff[d] ?? sickDays[d]) || !!next.sick[d] !== !!sickDays[d])) setPopped(d);
@@ -262,7 +293,8 @@ export function PlanView({
 
   const short = (v: number) => {
     const u = toUnits(v, perDay, units);
-    const r = Math.abs(u) >= 100 ? Math.round(u) : Math.round(u * 10) / 10;
+    // Round big numbers, and negatives past −10, so the tag fits a narrow weekend column.
+    const r = Math.abs(u) >= 100 || u <= -10 ? Math.round(u) : Math.round(u * 10) / 10;
     const s = (Number.isInteger(r) ? String(r) : r.toFixed(1)).replace('-', '−');
     return units === 'days' ? `${s}d` : `${s}h`;
   };
@@ -426,15 +458,33 @@ export function PlanView({
         </div>
       </section>
 
-      <div className={`plan-bar ${forecast.firstOverdrawn ? 'problem' : ''}`} aria-live="polite">
-        {forecast.firstOverdrawn ? (
-          <p>
-            <strong>
-              You’d be {amount(Math.abs(forecast.balanceOn(forecast.firstOverdrawn) - floor), perDay, units)} short on{' '}
-              {formatDate(forecast.firstOverdrawn, 'medium')}.
-            </strong>{' '}
-            Remove a red day or move it later.
-          </p>
+      <div className={`plan-bar ${shortfall ? 'problem' : ''}`} aria-live="polite">
+        {shortfall ? (
+          <div className="shortfall">
+            <p>
+              <strong>
+                You’d be {amount(shortfall.hours, perDay, units)} short by {formatDate(shortfall.date, 'medium')}.
+              </strong>{' '}
+              {shortfall.helpers.length > 0 ? 'Red days run out. Dropping earlier time off helps:' : 'Remove a red day or move it later.'}
+            </p>
+            {shortfall.helpers.length > 0 ? (
+              <div className="chips">
+                {shortfall.helpers.map(({ trip, frees }) => (
+                  <button
+                    key={trip.id}
+                    type="button"
+                    className="chip tiny"
+                    onClick={() => {
+                      const p = partsOf(toDay(trip.start));
+                      setMonth({ y: p.y, m: p.m });
+                    }}
+                  >
+                    {shortRange(trip.start, trip.end)} · {amount(frees, perDay, units)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : sickForecast?.firstOverdrawn ? (
           <p>
             <strong>

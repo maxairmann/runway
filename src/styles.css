@@ -2007,8 +2007,8 @@ input[type='checkbox'] {
 /* A holiday you take off: tuck the icon into the corner so the label stays readable */
 .cal-day.day-off:has(.cal-holiday) .off-mark {
   justify-content: flex-end;
-  align-items: flex-end;
-  padding: 0 3px 3px 0;
+  align-items: flex-start;
+  padding: 4px 3px 0 0;
 }
 .cal-day.day-off:has(.cal-holiday) .off-mark svg {
   width: 16px;
@@ -2077,4 +2077,44 @@ input[type='checkbox'] {
 }
 .kind-toggle .segmented button {
   flex: 1;
+}
+.finder-row {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.finder-when select {
+  max-width: 100%;
+}
+.shortfall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.shortfall .chips {
+  gap: 0.35rem;
+}
+.payday {
+  left: 1px;
+  right: 1px;
+  letter-spacing: -0.02em;
+}
+@media (max-width: 600px) {
+  .plan-head h1 {
+    font-size: 1.7rem;
+  }
+  .plan-banked {
+    font-size: 1rem;
+  }
+  .plan-loss {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.6rem 0.3rem;
+  }
+  .plan-head {
+    margin-bottom: 0.6rem;
+  }
+}
+.chip.tiny {
+  min-height: 32px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.85rem;
 }
