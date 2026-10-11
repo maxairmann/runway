@@ -235,7 +235,7 @@ export function PtoRules({
             ))}
           </div>
         </div>
-        <Field label="Paid holidays" hint={presets.length > 0 ? `${year}: ${presets.map((h) => h.name).join(', ')}.` : undefined}>
+        <Field label="Paid holidays (no PTO used)" hint={presets.length > 0 ? `${year}: ${presets.map((h) => h.name).join(', ')}.` : undefined}>
           {(id) => (
             <select id={id} value={m.holidaySet} onChange={(e) => setM({ ...m, holidaySet: e.target.value as HolidaySet })}>
               {Object.entries(HOLIDAY_SET_LABELS).map(([k, v]) => (
@@ -246,6 +246,16 @@ export function PtoRules({
             </select>
           )}
         </Field>
+        <label className="check">
+          <input
+            id="jewish-holidays"
+            type="checkbox"
+            checked={!!m.jewishHolidays}
+            onChange={(e) => setM({ ...m, jewishHolidays: e.target.checked })}
+          />
+          Show Jewish holidays on the calendar
+        </label>
+        <p className="hint">Includes Rosh Hashanah, Yom Kippur, Sukkot, Passover, Shavuot, Hanukkah and Purim. Tap the ones you’ll take off; they use PTO.</p>
         <div className="subhead">Extra company holidays</div>
         {m.holidays.length > 0 ? (
           <ul className="plain-list">

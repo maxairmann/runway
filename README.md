@@ -13,6 +13,7 @@ It started as a Google Sheet my wife and I used to plan a year of time off. The 
 - **Plan on a calendar.** Tap workdays to take them off; tap again for a half day. Weekends and holidays are free. On a phone you see one month plus the next month's first week; on a laptop, three months.
 - **Know before you book.** Every workday shows the days you'll have banked. Days that would put you below zero, now or after a later trip, turn red, and the summary names the date it would break.
 - **Real employer rules.** Weekly, biweekly, semi-monthly, monthly, or annual accrual; rate changes on a date; maximum balance; carryover cap with a reset date; borrowing below zero; US federal or common company holidays plus your own.
+- **Jewish holidays (optional).** Rosh Hashanah through Purim, computed from the Hebrew calendar (`src/engine/hebrew.ts`, tested against published dates), marked on the calendar so you can plan around them.
 - **Use-it-or-lose-it warnings.** "You forfeit 9.3 days on Jan 1 unless you use them first," updated as you pick days.
 - **When can I go?** Ask for N workdays and get the first stretch that fits, counting trips already planned.
 - **Paystub corrections.** Enter your real balance on any date and the forecast re-anchors there.

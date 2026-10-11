@@ -2,15 +2,12 @@ import { useState } from 'react';
 import type { Household } from '../engine/types';
 import type { Mode, Store } from '../data/store';
 import { Onboarding } from './Onboarding';
+import { CorgiMark } from './Corgi';
 
 export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigured: boolean; onChoose: (m: Mode) => void; hasLocal: boolean }) {
   return (
     <main className="welcome">
-      <div className="welcome-mark" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
+      <CorgiMark className="welcome-corgi" />
       <h1>Runway</h1>
       <p className="lead">
         Tap the days you want off and see right away whether you’ll have the PTO. Caps, carryover, and holidays included.

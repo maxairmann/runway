@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, formatDate, fromDay, partsOf, toDay, weekdayOf, type ISODate } from '../engine/dates';
 import { forecastMember, nextLoss, type ForecastOptions } from '../engine/forecast';
-import { memberHolidays } from '../engine/holidays';
+import { markedHolidays, memberHolidays } from '../engine/holidays';
 import { cycleDay, daysOffFromTrips, holidaySets, isWorkday, monthGrid, setDay, tripsFromDaysOff, type Picks } from '../engine/plan';
 import type { Household } from '../engine/types';
 import { newId } from '../data/ids';
 import { amount, toUnits } from '../format';
 import { Sheet } from './ui';
+import { CorgiPeek } from './Corgi';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -37,7 +38,11 @@ function viewDays(mo: Month, extended: boolean): { days: ISODate[]; active: (d: 
   if (!extended) return { days: grid, active: (d) => partsOf(toDay(d)).m === mo.m };
   const lastN = toDay(grid[grid.length - 1]);
   const next = shiftMonth(mo, 1);
-  const tail = partsOf(lastN).m === next.m ? [] : Array.from({ length: 7 }, (_, i) => fromDay(lastN + 1 + i));
+  // Show the next month's first two weeks: add whole weeks until the grid reaches its 14th.
+  let end = lastN;
+  const target = toDay(`${next.y}-${String(next.m).padStart(2, '0')}-14`);
+  while (end < target) end += 7;
+  const tail = Array.from({ length: end - lastN }, (_, i) => fromDay(lastN + 1 + i));
   return { days: [...grid, ...tail], active: () => true };
 }
 
@@ -113,6 +118,29 @@ export function PlanView({
 
   const hol = useMemo(() => holidaySets([me], month.y - 1, month.y + 2).get(me.id), [me, month.y]);
   const holidayNames = useMemo(() => new Map(memberHolidays(me, month.y - 1, month.y + 2).map((h) => [h.date, h.name])), [me, month.y]);
+  const markedNames = useMemo(() => new Map(markedHolidays(me, month.y - 1, month.y + 2).map((h) => [h.date, h.name])), [me, month.y]);
+
+  // Holidays in view, grouped into runs ("Rosh Hashanah, Sep 12–13").
+  const inView = useMemo(() => {
+    const first = views[0].days.find((d) => views[0].active(d)) ?? views[0].days[0];
+    const lastView = views[views.length - 1];
+    const lastDay = [...lastView.days].reverse().find((d) => lastView.active(d)) ?? lastView.days[lastView.days.length - 1];
+    const rows: { name: string; start: ISODate; end: ISODate; paid: boolean }[] = [];
+    const all = [
+      ...[...holidayNames].map(([date, name]) => ({ date, name, paid: true })),
+      ...[...markedNames].map(([date, name]) => ({ date, name, paid: false })),
+    ]
+      .filter((h) => h.date >= first && h.date <= lastDay && h.date >= today)
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    for (const h of all) {
+      const base = h.name.replace(/ \(day [278]\)$/, '');
+      const label = / \(day [78]\)$/.test(h.name) ? `${base} (last days)` : base;
+      const last = rows[rows.length - 1];
+      if (last && last.name === label && toDay(h.date) === toDay(last.end) + 1 && last.paid === h.paid) last.end = h.date;
+      else rows.push({ name: label, start: h.date, end: h.date, paid: h.paid });
+    }
+    return rows;
+  }, [views, holidayNames, markedNames, today]);
   const floor = -me.policy.allowNegative;
 
   const save = (next: Picks, d: ISODate) => {
@@ -198,6 +226,7 @@ export function PlanView({
       </header>
 
       <section className="calendar" aria-label="Calendar" onTouchStart={narrow ? onTouchStart : undefined} onTouchEnd={narrow ? onTouchEnd : undefined}>
+        <CorgiPeek />
         <div className="month-nav">
           <button type="button" className="icon-btn" aria-label="Previous month" disabled={atFirst} onClick={() => setMonth((mo) => shiftMonth(mo, -1))}>
             ‹
@@ -254,6 +283,7 @@ export function PlanView({
                   const offHours = off ? Math.round(off * perDay * 100) / 100 : 0;
                   const kind = !off ? null : off === 1 ? 'full' : off === 0.5 ? 'half' : 'custom';
                   const holiday = holidayNames.get(d);
+                  const marked = markedNames.get(d);
                   const payday = paydays.get(d);
                   const below = !!off && !past && forecast.balanceOn(d) < floor - 1e-9;
                   const cls = [
@@ -262,6 +292,7 @@ export function PlanView({
                     past ? 'past' : '',
                     !work ? 'weekend' : '',
                     holiday ? 'holiday' : '',
+                    marked ? 'marked' : '',
                     kind ? `day-off ${kind}` : '',
                     below ? 'below' : '',
                     d === today ? 'today' : '',
@@ -271,6 +302,7 @@ export function PlanView({
                   const label = [
                     `${WEEKDAY_NAMES[weekdayOf(n)]}, ${formatDate(d, 'short')}`,
                     holiday ? `${holiday}, paid holiday` : '',
+                    marked ? marked : '',
                     kind === 'full' ? 'day off' : kind === 'half' ? 'half day off' : kind === 'custom' ? `${offHours} hours off` : '',
                     below ? 'puts you below zero' : '',
                     payday !== undefined ? `payday, ${amount(payday, perDay, units)} banked after` : '',
@@ -306,6 +338,7 @@ export function PlanView({
                         {adjacent && p.d === 1 ? <small>{MONTHS[p.m - 1].slice(0, 3)} </small> : null}
                         {p.d}
                       </span>
+                      {marked ? <span className="marked-dot" aria-hidden="true" /> : null}
                       {kind ? (
                         <span className={`off-mark ${popped === d ? 'pop' : ''}`} onAnimationEnd={() => setPopped(null)}>
                           {kind === 'full' ? <BeachUmbrella /> : <Car />}
@@ -321,28 +354,20 @@ export function PlanView({
             </div>
           ))}
         </div>
-        <ul className="cal-legend">
-          <li>
-            <BeachUmbrella />
-            Tap a day once for a full day off.
-          </li>
-          <li>
-            <Car />
-            Tap again for a half day. A third tap clears it.
-          </li>
-          <li>
-            <span className="legend-hold" aria-hidden="true">
-              ⋯
-            </span>
-            {narrow ? 'Press and hold' : 'Right-click'} a day for a different number of hours.
-          </li>
-          <li>
-            <span className="payday sample" aria-hidden="true">
-              {units === 'days' ? '4.5d' : '36h'}
-            </span>
-            Payday: what you have once PTO is added.
-          </li>
-        </ul>
+        {inView.length > 0 ? (
+          <ul className="holiday-list" aria-label="Holidays in view">
+            {inView.map((h) => (
+              <li key={`${h.start}-${h.name}`} className={h.paid ? 'paid' : 'marked'}>
+                <span className="holiday-swatch" aria-hidden="true" />
+                <span className="holiday-name">{h.name}</span>
+                <span className="holiday-when">
+                  {h.start === h.end ? formatDate(h.start, 'short') : `${formatDate(h.start, 'short')}–${partsOf(toDay(h.end)).d}`}
+                  {h.paid ? ', paid' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </section>
 
       <div className={`plan-bar ${forecast.firstOverdrawn ? 'problem' : ''}`} aria-live="polite">
@@ -360,7 +385,10 @@ export function PlanView({
             {formatDate(low.date, 'short')}.
           </p>
         ) : (
-          <p>Tap any workday to take it off.</p>
+          <p>
+            Tap a workday to take it off. Tap again for a half day, or {narrow ? 'press and hold' : 'right-click'} for other hours. Green tags
+            show your balance on paydays.
+          </p>
         )}
       </div>
 

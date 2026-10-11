@@ -54,6 +54,8 @@ export interface Member {
   policy: Policy;
   holidaySet: HolidaySet;
   holidays: Holiday[];
+  /** Show Jewish holidays on the calendar (marked only; taking them off uses PTO). */
+  jewishHolidays?: boolean;
   checkpoints: Checkpoint[];
 }
 

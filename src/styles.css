@@ -14,8 +14,12 @@
   --red: #c2413a;
   --red-wash: #fbe9e7;
   --green: #2f7a4f;
-  --focus: #3d6fb6;
-  --link: #2f5f9e;
+  --focus: #6d4aa8;
+  --link: #5b3a96;
+  --accent: #6d4aa8;
+  --accent-wash: #f1ecfa;
+  --accent-ink: #4a2d7a;
+  --on-accent: #ffffff;
   --radius-lg: 18px;
   --radius: 12px;
   --radius-sm: 8px;
@@ -39,7 +43,12 @@
     --red: #e46a62;
     --red-wash: #33201f;
     --green: #5cb684;
-    --link: #8fb3ea;
+    --link: #c3aef2;
+    --focus: #b69cf0;
+    --accent: #a98be8;
+    --accent-wash: #2a2340;
+    --accent-ink: #d9cbfa;
+    --on-accent: #1a1230;
     color-scheme: dark;
   }
 }
@@ -57,7 +66,12 @@
   --red: #e46a62;
   --red-wash: #33201f;
   --green: #5cb684;
-  --link: #8fb3ea;
+  --link: #c3aef2;
+  --focus: #b69cf0;
+  --accent: #a98be8;
+  --accent-wash: #2a2340;
+  --accent-ink: #d9cbfa;
+  --on-accent: #1a1230;
   color-scheme: dark;
 }
 
@@ -1762,4 +1776,143 @@ legend {
   .tabs button.home span {
     font-size: 0.95rem;
   }
+}
+
+/* Adina's accents: purple, and a corgi */
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+button.primary:hover:not(:disabled) {
+  background: var(--accent-ink);
+}
+:focus-visible {
+  outline-color: var(--accent);
+}
+.segmented button.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.home-disc {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tabs button.home:not(.on) .home-disc {
+  color: var(--accent);
+}
+.cal-day.today {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.chip.on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+.hours-choice.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.icon-car .glass {
+  fill: #ece4fb;
+}
+input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+.corgi .corgi-fur {
+  fill: #d98a3d;
+}
+.corgi .corgi-ear {
+  fill: #f2b9a1;
+}
+.corgi .corgi-white,
+.corgi .corgi-paw {
+  fill: #fff8ee;
+}
+.corgi .corgi-paw {
+  stroke: #e7d3bb;
+  stroke-width: 0.8;
+}
+.corgi .corgi-eye {
+  fill: #2a1e14;
+}
+.corgi .corgi-mouth {
+  fill: none;
+  stroke: #2a1e14;
+  stroke-width: 0.7;
+  stroke-linecap: round;
+}
+.brand-corgi {
+  width: 24px;
+  height: 23px;
+  margin-top: -3px;
+}
+.welcome-corgi {
+  width: 64px;
+  height: 60px;
+}
+.calendar {
+  position: relative;
+}
+.corgi-peek {
+  position: absolute;
+  top: -31px;
+  right: 28px;
+  width: 38px;
+  height: 37px;
+  pointer-events: none;
+}
+.plan-head {
+  margin-bottom: 1.2rem;
+}
+
+/* Jewish holidays: marked, still tappable */
+.marked-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.cal-day.holiday::after {
+  background: var(--green);
+}
+.holiday-list {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0 0;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+}
+.holiday-list li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 0.6rem;
+  align-items: center;
+}
+.holiday-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.holiday-list li.paid .holiday-swatch {
+  background: var(--green);
+}
+.holiday-name {
+  font-weight: 600;
+  min-width: 0;
+}
+.holiday-when {
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.corgi .corgi-tongue {
+  fill: #e98a8a;
 }

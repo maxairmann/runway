@@ -38,6 +38,7 @@ export function makeDemo(today: ISODate = todayISO()): Household {
         buffer: 0,
         holidaySet: 'federal',
         holidays: [],
+        jewishHolidays: true,
         checkpoints: [],
         policy: {
           method: 'semimonthly',

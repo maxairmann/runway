@@ -5,6 +5,7 @@ import { newId } from './data/ids';
 import { daysOffFromTrips, tripsFromDaysOff } from './engine/plan';
 import { useStore } from './data/store';
 import { CloudGate, Welcome } from './components/Entry';
+import { CorgiMark } from './components/Corgi';
 import { Onboarding } from './components/Onboarding';
 import { PlanView } from './components/PlanView';
 import { SettingsView } from './components/SettingsView';
@@ -86,11 +87,7 @@ export default function App() {
 
       <header className="topbar">
         <span className="brand" aria-hidden="true">
-          <span className="brand-mark">
-            <span />
-            <span />
-            <span />
-          </span>
+          <CorgiMark className="brand-corgi" />
           Runway
         </span>
         <span className="household-name">{household.name}</span>

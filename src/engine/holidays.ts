@@ -1,5 +1,6 @@
 import { daysInMonth, fromDay, isoOf, toDay, weekdayOf, type ISODate } from './dates';
 import type { Holiday, HolidaySet, Member } from './types';
+import { jewishHolidays } from './hebrew';
 
 /** nth (1-based) weekday of a month; n = -1 means the last one. */
 function nthWeekday(y: number, m: number, weekday: number, n: number): ISODate {
@@ -57,6 +58,11 @@ export const HOLIDAY_SET_LABELS: Record<HolidaySet, string> = {
   common: 'Common company holidays (7)',
   federal: 'US federal holidays (11)',
 };
+
+/** Holidays shown on the calendar but not given off by the employer. */
+export function markedHolidays(member: Member, fromYear: number, toYear: number): Holiday[] {
+  return member.jewishHolidays ? jewishHolidays(fromYear, toYear, { minor: true }) : [];
+}
 
 export function presetHolidays(set: HolidaySet, fromYear: number, toYear: number): Holiday[] {
   if (set === 'none') return [];
