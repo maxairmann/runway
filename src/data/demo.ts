@@ -36,9 +36,12 @@ export function makeDemo(today: ISODate = todayISO()): Household {
         startDate: start,
         startBalance: 88,
         buffer: 0,
-        holidaySet: 'federal',
+        holidaySet: 'none',
         holidays: [],
+        usHolidays: true,
         jewishHolidays: true,
+        // Labeled but worked: MLK Day, Presidents' Day, Juneteenth, Columbus Day, Veterans Day, and the Jewish holidays.
+        paidHolidays: ["New Year's Day", 'Memorial Day', 'Independence Day', 'Labor Day', 'Thanksgiving', 'Day after Thanksgiving', 'Christmas Day'],
         checkpoints: [],
         policy: {
           method: 'semimonthly',

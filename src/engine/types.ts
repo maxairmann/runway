@@ -52,10 +52,16 @@ export interface Member {
   /** Warn when a plan would drop below this many hours. */
   buffer: number;
   policy: Policy;
+  /** Older plans: which preset counted as paid. Newer plans use paidHolidays. */
   holidaySet: HolidaySet;
+  /** Your own extra paid days off (company-specific). */
   holidays: Holiday[];
-  /** Show Jewish holidays on the calendar (marked only; taking them off uses PTO). */
+  /** Label US holidays on the calendar (default on). */
+  usHolidays?: boolean;
+  /** Label Jewish holidays on the calendar. */
   jewishHolidays?: boolean;
+  /** Holidays your employer gives off (names, e.g. "Thanksgiving"). Everything else is only a label. */
+  paidHolidays?: string[];
   checkpoints: Checkpoint[];
 }
 

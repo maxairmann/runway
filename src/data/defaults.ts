@@ -38,8 +38,10 @@ export function newMember(input: NewMemberInput, index = 0): Member {
     startDate: input.asOf,
     startBalance: input.balance ?? 0,
     buffer: 0,
-    holidaySet: 'common',
+    holidaySet: 'none',
     holidays: [],
+    usHolidays: true,
+    paidHolidays: [],
     checkpoints: [],
     policy: {
       method: input.method,

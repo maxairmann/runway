@@ -23,6 +23,14 @@ function observed(iso: ISODate): ISODate {
   return iso;
 }
 
+/** US holidays to label: the federal list plus the day after Thanksgiving, which many employers give. */
+function usHolidays(y: number): Holiday[] {
+  const list = federal(y);
+  const tg = list.find((h) => h.name === 'Thanksgiving')!;
+  list.splice(list.indexOf(tg) + 1, 0, { date: fromDay(toDay(tg.date) + 1), name: 'Day after Thanksgiving' });
+  return list;
+}
+
 function federal(y: number): Holiday[] {
   return [
     { date: observed(isoOf(y, 1, 1)), name: "New Year's Day" },
@@ -59,11 +67,6 @@ export const HOLIDAY_SET_LABELS: Record<HolidaySet, string> = {
   federal: 'US federal holidays (11)',
 };
 
-/** Holidays shown on the calendar but not given off by the employer. */
-export function markedHolidays(member: Member, fromYear: number, toYear: number): Holiday[] {
-  return member.jewishHolidays ? jewishHolidays(fromYear, toYear, { minor: true }) : [];
-}
-
 export function presetHolidays(set: HolidaySet, fromYear: number, toYear: number): Holiday[] {
   if (set === 'none') return [];
   const out: Holiday[] = [];
@@ -71,8 +74,58 @@ export function presetHolidays(set: HolidaySet, fromYear: number, toYear: number
   return out;
 }
 
-/** Every holiday that applies to this member between two years, presets plus custom. */
+export type HolidayGroup = 'us' | 'jewish';
+
+export interface LabeledHoliday extends Holiday {
+  /** The name without "(day 2)" etc., used for the paid setting. */
+  base: string;
+  group: HolidayGroup;
+}
+
+export function baseName(name: string): string {
+  return name.replace(/ \(day \d\)$/, '');
+}
+
+/** Every holiday name a person could mark as paid, in calendar order. */
+export const US_HOLIDAY_NAMES = usHolidays(2026).map((h) => h.name);
+export const JEWISH_HOLIDAY_NAMES = [
+  'Rosh Hashanah',
+  'Yom Kippur',
+  'Sukkot',
+  'Shemini Atzeret',
+  'Simchat Torah',
+  'Hanukkah',
+  'Purim',
+  'Passover',
+  'Shavuot',
+];
+
+/** Holiday names this person gets as paid days off. Older plans fall back to their preset. */
+export function paidNames(member: Member): Set<string> {
+  if (member.paidHolidays) return new Set(member.paidHolidays);
+  if (member.holidaySet === 'none') return new Set();
+  const y = 2026;
+  return new Set((member.holidaySet === 'federal' ? federal(y) : common(y)).map((h) => h.name));
+}
+
+/** Every holiday labeled on this person's calendar, paid or not. */
+export function labeledHolidays(member: Member, fromYear: number, toYear: number): LabeledHoliday[] {
+  const out: LabeledHoliday[] = [];
+  const paid = paidNames(member);
+  const showUs = member.usHolidays ?? true;
+  for (let y = fromYear; y <= toYear; y++) {
+    for (const h of usHolidays(y)) if (showUs || paid.has(h.name)) out.push({ ...h, base: h.name, group: 'us' });
+  }
+  for (const h of jewishHolidays(fromYear, toYear, { minor: true })) {
+    const base = baseName(h.name);
+    if (member.jewishHolidays || paid.has(base)) out.push({ ...h, base, group: 'jewish' });
+  }
+  return out.sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+/** Days off the employer gives (no PTO used): holidays marked paid, plus your own extra days. */
 export function memberHolidays(member: Member, fromYear: number, toYear: number): Holiday[] {
-  const all = [...presetHolidays(member.holidaySet, fromYear, toYear), ...member.holidays];
+  const paid = paidNames(member);
+  const all: Holiday[] = [...labeledHolidays(member, fromYear, toYear).filter((h) => paid.has(h.base)), ...member.holidays];
   return all.sort((a, b) => (a.date < b.date ? -1 : 1));
 }

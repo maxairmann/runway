@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatDate, todayISO, type ISODate } from '../engine/dates';
-import { HOLIDAY_SET_LABELS, presetHolidays } from '../engine/holidays';
-import type { AccrualMethod, HolidaySet, Household, Member } from '../engine/types';
+import { JEWISH_HOLIDAY_NAMES, US_HOLIDAY_NAMES, paidNames } from '../engine/holidays';
+import type { AccrualMethod, Household, Member } from '../engine/types';
 import { EVENTS_PER_YEAR, METHOD_LABELS } from '../data/defaults';
 import { hours, round2 } from '../format';
 import { Field, NumberInput } from './ui';
@@ -44,8 +44,16 @@ export function PtoRules({
   const setP = (patch: Partial<Member['policy']>) => setM({ ...m, policy: { ...m.policy, ...patch } });
   const yearly = round2(p.rate * EVENTS_PER_YEAR[p.method]);
   const [resetMonth, resetDay] = (p.resetDate ?? '01-01').split('-').map(Number);
-  const year = new Date().getFullYear();
-  const presets = presetHolidays(m.holidaySet, year, year);
+  const paid = paidNames(m);
+  const showUs = m.usHolidays ?? true;
+  const showJewish = !!m.jewishHolidays;
+  const paidChoices = [...(showUs ? US_HOLIDAY_NAMES : []), ...(showJewish ? JEWISH_HOLIDAY_NAMES : [])];
+  const togglePaid = (name: string) => {
+    const next = new Set(paid);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    setM({ ...m, paidHolidays: paidChoices.filter((n) => next.has(n)).concat([...next].filter((n) => !paidChoices.includes(n))) });
+  };
 
   return (
     <>
@@ -235,27 +243,31 @@ export function PtoRules({
             ))}
           </div>
         </div>
-        <Field label="Paid holidays (no PTO used)" hint={presets.length > 0 ? `${year}: ${presets.map((h) => h.name).join(', ')}.` : undefined}>
-          {(id) => (
-            <select id={id} value={m.holidaySet} onChange={(e) => setM({ ...m, holidaySet: e.target.value as HolidaySet })}>
-              {Object.entries(HOLIDAY_SET_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
+        <div className="field">
+          <span className="label">Label on the calendar</span>
+          <label className="check">
+            <input id="us-holidays" type="checkbox" checked={showUs} onChange={(e) => setM({ ...m, usHolidays: e.target.checked })} />
+            US holidays
+          </label>
+          <label className="check">
+            <input id="jewish-holidays" type="checkbox" checked={showJewish} onChange={(e) => setM({ ...m, jewishHolidays: e.target.checked })} />
+            Jewish holidays
+          </label>
+          <p className="hint">Labels are just labels: a holiday is a normal workday unless you mark it paid below.</p>
+        </div>
+        {paidChoices.length > 0 ? (
+          <div className="field">
+            <span className="label">Paid days off at work (no PTO used)</span>
+            <div className="chips">
+              {paidChoices.map((n) => (
+                <button key={n} type="button" className={`chip small ${paid.has(n) ? 'on' : ''}`} aria-pressed={paid.has(n)} onClick={() => togglePaid(n)}>
+                  {n}
+                </button>
               ))}
-            </select>
-          )}
-        </Field>
-        <label className="check">
-          <input
-            id="jewish-holidays"
-            type="checkbox"
-            checked={!!m.jewishHolidays}
-            onChange={(e) => setM({ ...m, jewishHolidays: e.target.checked })}
-          />
-          Show Jewish holidays on the calendar
-        </label>
-        <p className="hint">Includes Rosh Hashanah, Yom Kippur, Sukkot, Passover, Shavuot, Hanukkah and Purim. Tap the ones you’ll take off; they use PTO.</p>
+            </div>
+            <p className="hint">Tap the ones your employer gives off. You can also press and hold a holiday on the calendar.</p>
+          </div>
+        ) : null}
         <div className="subhead">Extra company holidays</div>
         {m.holidays.length > 0 ? (
           <ul className="plain-list">

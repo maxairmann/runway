@@ -1939,16 +1939,34 @@ input[type='checkbox'] {
 .cal-holiday.paid {
   color: var(--green);
 }
-.cal-holiday.marked {
+.cal-holiday.unpaid {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.cal-holiday.unpaid.jewish {
   color: var(--accent-ink);
+}
+.check.holiday-paid {
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: var(--accent-wash);
+  font-weight: 500;
+}
+.check.holiday-paid input {
+  margin-top: 0.2rem;
+}
+.check.holiday-paid small {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink-2);
+  font-weight: 400;
 }
 .cal-day.holiday.weekend {
   background: color-mix(in srgb, var(--green) 9%, transparent);
   border-color: transparent;
   color: var(--ink-2);
-}
-.cal-day:has(.cal-holiday.marked):not(.day-off) {
-  background: var(--accent-wash);
 }
 .cal-day.holiday::after,
 .marked-dot,
@@ -1982,4 +2000,17 @@ input[type='checkbox'] {
   .cal-holiday {
     font-size: 0.62rem;
   }
+}
+/* A holiday you take off: tuck the icon into the corner so the label stays readable */
+.cal-day.day-off:has(.cal-holiday) .off-mark {
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 0 3px 3px 0;
+}
+.cal-day.day-off:has(.cal-holiday) .off-mark svg {
+  width: 16px;
+  height: 16px;
+}
+.cal-day.day-off:has(.cal-holiday) .part-label {
+  display: none;
 }

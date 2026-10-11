@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, formatDate, fromDay, partsOf, toDay, weekdayOf, type ISODate } from '../engine/dates';
 import { forecastMember, nextLoss, type ForecastOptions } from '../engine/forecast';
-import { markedHolidays, memberHolidays } from '../engine/holidays';
+import { labeledHolidays, paidNames, type HolidayGroup } from '../engine/holidays';
 import { cycleDay, daysOffFromTrips, holidaySets, isWorkday, monthGrid, setDay, tripsFromDaysOff, type Picks } from '../engine/plan';
 import type { Household } from '../engine/types';
 import { newId } from '../data/ids';
@@ -71,6 +71,13 @@ function Car() {
 }
 
 const HOLD_MS = 450;
+
+interface DayHoliday {
+  name: string;
+  base: string;
+  group: HolidayGroup | 'own';
+  paid: boolean;
+}
 
 /** Short holiday names that fit in a day square. */
 const SHORT: Record<string, string> = {
@@ -151,8 +158,28 @@ export function PlanView({
   }, [forecast, today]);
 
   const hol = useMemo(() => holidaySets([me], month.y - 1, month.y + 2).get(me.id), [me, month.y]);
-  const holidayNames = useMemo(() => new Map(memberHolidays(me, month.y - 1, month.y + 2).map((h) => [h.date, h.name])), [me, month.y]);
-  const markedNames = useMemo(() => new Map(markedHolidays(me, month.y - 1, month.y + 2).map((h) => [h.date, h.name])), [me, month.y]);
+  // Every labeled holiday, and whether the employer gives it off. Unpaid ones are ordinary workdays with a label.
+  const holidayLabels = useMemo(() => {
+    const paid = paidNames(me);
+    const out = new Map<ISODate, DayHoliday>();
+    for (const h of labeledHolidays(me, month.y - 1, month.y + 2)) {
+      if (!out.has(h.date) || paid.has(h.base)) out.set(h.date, { name: h.name, base: h.base, group: h.group, paid: paid.has(h.base) });
+    }
+    for (const h of me.holidays) out.set(h.date, { name: h.name, base: h.name, group: 'own', paid: true });
+    return out;
+  }, [me, month.y]);
+
+  const togglePaid = (base: string, paid: boolean) =>
+    update((h) => ({
+      ...h,
+      members: h.members.map((m, i) => {
+        if (i !== 0) return m;
+        const names = paidNames(m);
+        if (paid) names.add(base);
+        else names.delete(base);
+        return { ...m, paidHolidays: [...names] };
+      }),
+    }));
 
   const floor = -me.policy.allowNegative;
 
@@ -298,8 +325,8 @@ export function PlanView({
                   const off = daysOff[d];
                   const offHours = off ? Math.round(off * perDay * 100) / 100 : 0;
                   const kind = !off ? null : off === 1 ? 'full' : off === 0.5 ? 'half' : 'custom';
-                  const holiday = holidayNames.get(d);
-                  const marked = markedNames.get(d);
+                  const hl = holidayLabels.get(d);
+                  const paidHoliday = !!hl?.paid && !work && me.policy.workDays.includes(weekdayOf(n));
                   const payday = paydays.get(d);
                   const below = !!off && !past && forecast.balanceOn(d) < floor - 1e-9;
                   const cls = [
@@ -307,8 +334,7 @@ export function PlanView({
                     adjacent ? 'adjacent' : '',
                     past ? 'past' : '',
                     !work ? 'weekend' : '',
-                    holiday ? 'holiday' : '',
-                    marked ? 'marked' : '',
+                    paidHoliday ? 'holiday' : '',
                     kind ? `day-off ${kind}` : '',
                     below ? 'below' : '',
                     d === today ? 'today' : '',
@@ -318,8 +344,7 @@ export function PlanView({
                     .join(' ');
                   const label = [
                     `${WEEKDAY_NAMES[weekdayOf(n)]}, ${formatDate(d, 'short')}`,
-                    holiday ? `${holiday}, paid holiday` : '',
-                    marked ? marked : '',
+                    hl ? (paidHoliday ? `${hl.name}, paid holiday` : `${hl.name}, a workday`) : '',
                     kind === 'full' ? 'day off' : kind === 'half' ? 'half day off' : kind === 'custom' ? `${offHours} hours off` : '',
                     below ? 'puts you below zero' : '',
                     off && beforeStart ? 'already counted in your starting balance' : '',
@@ -327,7 +352,7 @@ export function PlanView({
                   ]
                     .filter(Boolean)
                     .join('. ');
-                  const tappable = work;
+                  const tappable = work || paidHoliday;
                   return (
                     <button
                       key={d}
@@ -338,7 +363,7 @@ export function PlanView({
                       aria-pressed={tappable ? !!off : undefined}
                       aria-haspopup="dialog"
                       style={kind && kind !== 'full' ? ({ ['--fill' as string]: `${Math.round((off as number) * 100)}%` } as React.CSSProperties) : undefined}
-                      onClick={() => tap(d)}
+                      onClick={() => (paidHoliday ? setCustom(d) : tap(d))}
                       onPointerDown={(e) => startHold(e, d)}
                       onPointerMove={moveHold}
                       onPointerUp={endHold}
@@ -356,9 +381,9 @@ export function PlanView({
                         {adjacent && p.d === 1 ? <small>{MONTHS[p.m - 1].slice(0, 3)} </small> : null}
                         {p.d}
                       </span>
-                      {holiday || marked ? (
-                        <span className={`cal-holiday ${holiday ? 'paid' : 'marked'}`} aria-hidden="true">
-                          {shortHoliday(holiday ?? (marked as string))}
+                      {hl ? (
+                        <span className={`cal-holiday ${paidHoliday ? 'paid' : 'unpaid'} ${hl.group}`} aria-hidden="true">
+                          {shortHoliday(hl.name)}
                         </span>
                       ) : null}
                       {kind ? (
@@ -405,6 +430,11 @@ export function PlanView({
           date={custom}
           perDay={perDay}
           current={daysOff[custom] ?? 0}
+          holiday={holidayLabels.get(custom)}
+          onPaid={(paid) => {
+            const h = holidayLabels.get(custom);
+            if (h) togglePaid(h.base, paid);
+          }}
           onClose={() => setCustom(null)}
           onSet={(hours) => {
             save(setDay(daysOff, custom, hours / perDay), custom);
@@ -420,12 +450,16 @@ function CustomHours({
   date,
   perDay,
   current,
+  holiday,
+  onPaid,
   onSet,
   onClose,
 }: {
   date: ISODate;
   perDay: number;
   current: number;
+  holiday?: DayHoliday;
+  onPaid: (paid: boolean) => void;
   onSet: (hours: number) => void;
   onClose: () => void;
 }) {
@@ -436,6 +470,19 @@ function CustomHours({
   const valid = value !== '' && typed > 0 && typed <= perDay;
   return (
     <Sheet open title={formatDate(date, 'long')} onClose={onClose}>
+      {holiday && holiday.group !== 'own' ? (
+        <label className="check holiday-paid">
+          <input type="checkbox" checked={holiday.paid} onChange={(e) => onPaid(e.target.checked)} />
+          <span>
+            <strong>{holiday.base}</strong> is a paid day off at work, every year
+            <small>{holiday.paid ? 'No PTO is used. Uncheck if you work this day.' : 'Check if your employer gives this day off; no PTO is used.'}</small>
+          </span>
+        </label>
+      ) : null}
+      {holiday?.paid ? (
+        <p className="hint">{holiday.group === 'own' ? `${holiday.name} is one of your extra paid days off (Settings).` : 'This day is already off, so there is nothing to take.'}</p>
+      ) : (
+      <>
       <div className="hours-grid">
         <button type="button" className={`hours-choice ${now === perDay ? 'on' : ''}`} onClick={() => onSet(perDay)}>
           <BeachUmbrella />
@@ -490,6 +537,8 @@ function CustomHours({
           Clear this day
         </button>
       ) : null}
+      </>
+      )}
     </Sheet>
   );
 }
