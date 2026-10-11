@@ -20,7 +20,7 @@ It started as a Google Sheet my wife and I used to plan a year of time off. The 
 - **When can I go?** Ask for N workdays and get the first stretch that fits, counting trips already planned.
 - **Paystub corrections.** Enter your real balance on any date and the forecast re-anchors there.
 - **Undo.** Deleting a trip or clearing your picks can be undone.
-- **Sync (optional).** Sign in with an email link to use the same plan on your phone and laptop.
+- **Sync (optional).** Sign in with an emailed code to use the same plan on your phone and laptop.
 - **Installable.** Add it to an Android or iPhone home screen; it opens full-screen and works offline.
 
 ## How the forecast works
@@ -73,7 +73,8 @@ Open the printed URL. To try it on your phone on the same Wi-Fi, run `npm run de
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run `supabase/schema.sql`.
 3. Under Authentication → URL Configuration, set the Site URL to your deployed URL (and add `http://localhost:5173` for local testing).
-4. Copy `.env.example` to `.env.local` and fill in the project URL and anon key from Project Settings → API.
+4. Under Authentication → Emails → Magic Link, add the code to the email body, e.g. `<p>Your code: <strong>{{ .Token }}</strong></p>`. On iPhone, an app saved to the home screen doesn't share a sign-in with Safari, so people sign in by typing the code rather than tapping the link.
+5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key from Project Settings → API.
 
 ## Deploy
 

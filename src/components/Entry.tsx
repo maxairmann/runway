@@ -34,6 +34,7 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
   const { cloud, cloudActions, localPlan } = store;
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setup, setSetup] = useState(false);
@@ -83,9 +84,46 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
         </button>
         <h1>Sign in</h1>
         {sent ? (
-          <p className="lead">
-            Check {email} for a sign-in link. Open it on this device and you’ll land back here, signed in.
-          </p>
+          <form
+            className="welcome-actions"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(() => cloudActions.verifyCode(email.trim(), code.trim()));
+            }}
+          >
+            <p className="lead">We emailed {email} a sign-in code. Enter it here.</p>
+            <label className="field">
+              <span className="label">Code</span>
+              <input
+                id="signin-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]*"
+                maxLength={10}
+                required
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              />
+            </label>
+            {error ? <p className="error">{error}</p> : null}
+            <button type="submit" className="primary wide" disabled={busy || code.length < 6}>
+              {busy ? 'Signing in…' : 'Sign in'}
+            </button>
+            <p className="hint">
+              On a computer you can also just click the link in the email.{' '}
+              <button
+                type="button"
+                className="link"
+                onClick={() => {
+                  setSent(false);
+                  setCode('');
+                  setError(null);
+                }}
+              >
+                Use a different email
+              </button>
+            </p>
+          </form>
         ) : (
           <form
             className="welcome-actions"
@@ -97,14 +135,14 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
               });
             }}
           >
-            <p className="lead">We’ll email you a link. No password.</p>
+            <p className="lead">We’ll email you a sign-in code. No password.</p>
             <label className="field">
               <span className="label">Email</span>
               <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </label>
             {error ? <p className="error">{error}</p> : null}
             <button type="submit" className="primary wide" disabled={busy}>
-              {busy ? 'Sending…' : 'Email me a sign-in link'}
+              {busy ? 'Sending…' : 'Email me a code'}
             </button>
           </form>
         )}

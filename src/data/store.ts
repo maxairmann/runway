@@ -193,6 +193,8 @@ export function useStore() {
 
   const cloudActions = {
     sendLink: (email: string) => sync.sendMagicLink(email),
+    /** The auth listener loads the plan once this signs in. */
+    verifyCode: (email: string, code: string) => sync.verifyCode(email, code),
     signOut: async () => {
       await sync.signOut();
       setHousehold(null);

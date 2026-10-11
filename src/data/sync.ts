@@ -49,6 +49,16 @@ export async function sendMagicLink(email: string): Promise<void> {
   fail(error);
 }
 
+/**
+ * Sign in with the code from the same email. Needed on iPhone: a link opens in Safari,
+ * which doesn't share a sign-in with the app saved to the home screen.
+ */
+export async function verifyCode(email: string, code: string): Promise<void> {
+  const sb = await client();
+  const { error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
+  fail(error);
+}
+
 export async function signOut(): Promise<void> {
   const sb = await client();
   const { error } = await sb.auth.signOut();
