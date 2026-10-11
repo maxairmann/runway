@@ -1,47 +1,15 @@
-// A Pembroke Welsh corgi: big upright ears, red-and-white face, white blaze down the middle.
+// A Pembroke Welsh corgi: big rounded ears, white blaze widening into a white muzzle, happy tongue.
+// Drawn as static SVG (see the illustrations' class names in styles.css).
 
-function Head({ cy = 18 }: { cy?: number }) {
-  const y = cy - 18;
-  return (
-    <g transform={`translate(0 ${y})`}>
-      <path className="corgi-fur" d="M3.8 16.2 5.2 4.1Q5.5 2.2 7 3.3L14.6 10z" />
-      <path className="corgi-fur" d="M28.2 16.2 26.8 4.1Q26.5 2.2 25 3.3L17.4 10z" />
-      <path className="corgi-ear" d="M6.6 12.6 7.3 6.3 11.8 10.1z" />
-      <path className="corgi-ear" d="M25.4 12.6 24.7 6.3 20.2 10.1z" />
-      <ellipse className="corgi-fur" cx="16" cy="18.6" rx="12.4" ry="9.2" />
-      <path className="corgi-white" d="M16 10.4c-1 1.8-1.7 4.1-2.8 6.6-2.9.4-5.7 2.2-5.5 4.8.3 3.3 4.1 5.4 8.3 5.4s8-2.1 8.3-5.4c.2-2.6-2.6-4.4-5.5-4.8-1.1-2.5-1.8-4.8-2.8-6.6z" />
-      <circle className="corgi-eye" cx="11.4" cy="16.6" r="1.35" />
-      <circle className="corgi-eye" cx="20.6" cy="16.6" r="1.35" />
-      <ellipse className="corgi-eye" cx="16" cy="20.6" rx="1.8" ry="1.2" />
-      <path className="corgi-mouth" d="M14.2 22.6c.8.7 1.8.6 1.8-.6 0 1.2 1 1.3 1.8.6" />
-      <path className="corgi-tongue" d="M15.2 23.2c0 1.3.4 1.9.8 1.9s.8-.6.8-1.9c-.5.3-1.1.3-1.6 0z" />
-    </g>
-  );
-}
+const HEAD = '<path class="corgi-fur" fill="#D98A3D" d="M4.6 15.8C3.2 11.6 2.5 7.6 3 4.4C3.5 1.3 6.2 0.5 8.3 2.3C10.7 4.4 13 6.9 14.8 9.8ZM27.4 15.8C28.8 11.6 29.5 7.6 29 4.4C28.5 1.3 25.8 0.5 23.7 2.3C21.3 4.4 19 6.9 17.2 9.8Z"/>\n<path class="corgi-ear" fill="#F2B9A1" d="M6.3 12.8C5.5 10.4 5.1 8 5.3 5.9C5.5 4.3 6.6 3.9 7.6 4.8C9.3 6.4 11 8.1 12.4 10ZM25.7 12.8C26.5 10.4 26.9 8 26.7 5.9C26.5 4.3 25.4 3.9 24.4 4.8C22.7 6.4 21 8.1 19.6 10Z"/>\n<path class="corgi-fur" fill="#D98A3D" d="M16 8C23.2 8 28.6 12 28.6 17.8C28.6 21.4 27 24 24.6 25.8C22.4 27.4 19.4 28.2 16 28.2C12.6 28.2 9.6 27.4 7.4 25.8C5 24 3.4 21.4 3.4 17.8C3.4 12 8.8 8 16 8Z"/>\n<path class="corgi-white" fill="#FFF8EE" d="M15.1 9.2Q16 8.5 16.9 9.2L17.3 15.2C18.4 18 24.6 17.4 28.4 19.8C27.9 22 26.6 24.2 24.4 25.6C22.2 27.1 19.3 27.8 16 27.8C12.7 27.8 9.8 27.1 7.6 25.6C5.4 24.2 4.1 22 3.6 19.8C7.4 17.4 13.6 18 14.7 15.2Z"/>\n<path class="corgi-eye" fill="#2A1E14" d="M11 14.55a1.65 1.65 0 1 0 0.01 0ZM21 14.55a1.65 1.65 0 1 0 0.01 0ZM13.6 19.4Q16 18.5 18.4 19.4Q18.3 21.4 16 21.9Q13.7 21.4 13.6 19.4Z"/>\n<path class="corgi-tongue" fill="#E98A8A" d="M14.7 23.7H17.3Q17.3 26 16 26Q14.7 26 14.7 23.7Z"/>\n<path class="corgi-mouth" stroke="#2A1E14" stroke-width="0.7" fill="none" stroke-linecap="round" d="M16 21.9V22.9M12.6 22.6Q14.2 24.6 16 22.9Q17.8 24.6 19.4 22.6"/>';
+const PEEK = '<defs><clipPath id="corgi-peek-clip"><rect width="32" height="26.5"/></clipPath></defs>\n<g clip-path="url(#corgi-peek-clip)"><g transform="translate(0 1)">\n<path class="corgi-fur" fill="#D98A3D" d="M4.6 15.8C3.2 11.6 2.5 7.6 3 4.4C3.5 1.3 6.2 0.5 8.3 2.3C10.7 4.4 13 6.9 14.8 9.8ZM27.4 15.8C28.8 11.6 29.5 7.6 29 4.4C28.5 1.3 25.8 0.5 23.7 2.3C21.3 4.4 19 6.9 17.2 9.8Z"/>\n<path class="corgi-ear" fill="#F2B9A1" d="M6.3 12.8C5.5 10.4 5.1 8 5.3 5.9C5.5 4.3 6.6 3.9 7.6 4.8C9.3 6.4 11 8.1 12.4 10ZM25.7 12.8C26.5 10.4 26.9 8 26.7 5.9C26.5 4.3 25.4 3.9 24.4 4.8C22.7 6.4 21 8.1 19.6 10Z"/>\n<path class="corgi-fur" fill="#D98A3D" d="M16 8C23.2 8 28.6 12 28.6 17.8C28.6 21.4 27 24 24.6 25.8C22.4 27.4 19.4 28.2 16 28.2C12.6 28.2 9.6 27.4 7.4 25.8C5 24 3.4 21.4 3.4 17.8C3.4 12 8.8 8 16 8Z"/>\n<path class="corgi-white" fill="#FFF8EE" d="M15.1 9.2Q16 8.5 16.9 9.2L17.3 15.2C18.4 18 24.6 17.4 28.4 19.8C27.9 22 26.6 24.2 24.4 25.6C22.2 27.1 19.3 27.8 16 27.8C12.7 27.8 9.8 27.1 7.6 25.6C5.4 24.2 4.1 22 3.6 19.8C7.4 17.4 13.6 18 14.7 15.2Z"/>\n<path class="corgi-eye" fill="#2A1E14" d="M11 14.55a1.65 1.65 0 1 0 0.01 0ZM21 14.55a1.65 1.65 0 1 0 0.01 0ZM13.6 19.4Q16 18.5 18.4 19.4Q18.3 21.4 16 21.9Q13.7 21.4 13.6 19.4Z"/>\n<path class="corgi-tongue" fill="#E98A8A" d="M14.7 23.7H17.3Q17.3 26 16 26Q14.7 26 14.7 23.7Z"/>\n<path class="corgi-mouth" stroke="#2A1E14" stroke-width="0.7" fill="none" stroke-linecap="round" d="M16 21.9V22.9M12.6 22.6Q14.2 24.6 16 22.9Q17.8 24.6 19.4 22.6"/>\n</g></g>\n<path class="corgi-paw" fill="#FFF8EE" stroke="#E7D3BB" stroke-width="0.8" stroke-linecap="round" d="M6.1 27.8C5.9 24.8 13.1 24.8 12.9 27.8Q9.5 28.8 6.1 27.8ZM19.1 27.8C18.9 24.8 26.1 24.8 25.9 27.8Q22.5 28.8 19.1 27.8ZM8.3 26.4V27.4M10.7 26.4V27.4M21.3 26.4V27.4M23.7 26.4V27.4"/>';
 
 /** The app mark: a corgi's head. */
 export function CorgiMark({ className = '' }: { className?: string }) {
-  return (
-    <svg className={`corgi ${className}`} viewBox="0 0 32 30" aria-hidden="true">
-      <Head />
-    </svg>
-  );
+  return <svg className={`corgi ${className}`} viewBox="0 0 32 30" aria-hidden="true" dangerouslySetInnerHTML={{ __html: HEAD }} />;
 }
 
 /** A corgi peeking over the top edge of a card, paws on the edge. Place it inside a positioned parent. */
 export function CorgiPeek() {
-  return (
-    <svg className="corgi corgi-peek" viewBox="0 0 32 31" aria-hidden="true">
-      <defs>
-        <clipPath id="corgi-peek-clip">
-          <rect x="0" y="0" width="32" height="26.5" />
-        </clipPath>
-      </defs>
-      <g clipPath="url(#corgi-peek-clip)">
-        <Head cy={20} />
-      </g>
-      <ellipse className="corgi-paw" cx="9.6" cy="27" rx="3.6" ry="2.3" />
-      <ellipse className="corgi-paw" cx="22.4" cy="27" rx="3.6" ry="2.3" />
-    </svg>
-  );
+  return <svg className="corgi corgi-peek" viewBox="0 0 32 31" aria-hidden="true" dangerouslySetInnerHTML={{ __html: PEEK }} />;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cycleDay, daysOffFromTrips, groupPicks, monthGrid, picksAsTrips, setDay, tripsFromDaysOff } from './plan';
-import { tripCost } from './forecast';
+import { forecastMember, tripCost } from './forecast';
 import type { Member } from './types';
 
 const me: Member = {
@@ -77,5 +77,16 @@ describe('custom hours on a day', () => {
 
   it('clears a day when set to zero', () => {
     expect(setDay({ '2026-11-17': 0.25 }, '2026-11-17', 0)).toEqual({});
+  });
+});
+
+describe('past days', () => {
+  it('a sick day after the starting-balance date lowers today’s balance; one before it is already counted', () => {
+    const opts = { from: '2026-10-09', until: '2027-01-01' };
+    const base = forecastMember(me, [], opts).balanceOn('2026-10-09');
+    const sick = tripsFromDaysOff({ '2026-10-05': 1 }, me, () => 's');
+    expect(forecastMember(me, sick, opts).balanceOn('2026-10-09')).toBe(base - 8);
+    const old = tripsFromDaysOff({ '2026-09-14': 1 }, me, () => 'o'); // before startDate 2026-09-19
+    expect(forecastMember(me, old, opts).balanceOn('2026-10-09')).toBe(base);
   });
 });

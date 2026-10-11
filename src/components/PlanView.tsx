@@ -72,6 +72,40 @@ function Car() {
 
 const HOLD_MS = 450;
 
+/** Short holiday names that fit in a day square. */
+const SHORT: Record<string, string> = {
+  "New Year's Day": 'New Year',
+  'Martin Luther King Jr. Day': 'MLK Day',
+  "Presidents' Day": 'Pres. Day',
+  'Memorial Day': 'Memo­rial',
+  Juneteenth: 'June­teenth',
+  'Independence Day': 'July 4th',
+  'Labor Day': 'Labor Day',
+  'Columbus Day': 'Colum­bus',
+  'Veterans Day': 'Veter­ans',
+  Thanksgiving: 'Thanks­giving',
+  'Day after Thanksgiving': 'Day after',
+  'Christmas Day': 'Christ­mas',
+  'Rosh Hashanah': 'Rosh Hash.',
+  'Rosh Hashanah (day 2)': 'Rosh Hash.',
+  'Yom Kippur': 'Yom Kippur',
+  Sukkot: 'Sukkot',
+  'Sukkot (day 2)': 'Sukkot',
+  'Shemini Atzeret': 'Shemini Atzeret',
+  'Simchat Torah': 'Simchat Torah',
+  Hanukkah: 'Hanuk­kah',
+  Purim: 'Purim',
+  Passover: 'Pass­over',
+  'Passover (day 2)': 'Pass­over',
+  'Passover (day 7)': 'Pass­over',
+  'Passover (day 8)': 'Pass­over',
+  Shavuot: 'Shavuot',
+  'Shavuot (day 2)': 'Shavuot',
+};
+function shortHoliday(name: string): string {
+  return SHORT[name] ?? (name.length > 14 ? `${name.slice(0, 12)}.` : name);
+}
+
 export function PlanView({
   household,
   today,
@@ -120,27 +154,6 @@ export function PlanView({
   const holidayNames = useMemo(() => new Map(memberHolidays(me, month.y - 1, month.y + 2).map((h) => [h.date, h.name])), [me, month.y]);
   const markedNames = useMemo(() => new Map(markedHolidays(me, month.y - 1, month.y + 2).map((h) => [h.date, h.name])), [me, month.y]);
 
-  // Holidays in view, grouped into runs ("Rosh Hashanah, Sep 12–13").
-  const inView = useMemo(() => {
-    const first = views[0].days.find((d) => views[0].active(d)) ?? views[0].days[0];
-    const lastView = views[views.length - 1];
-    const lastDay = [...lastView.days].reverse().find((d) => lastView.active(d)) ?? lastView.days[lastView.days.length - 1];
-    const rows: { name: string; start: ISODate; end: ISODate; paid: boolean }[] = [];
-    const all = [
-      ...[...holidayNames].map(([date, name]) => ({ date, name, paid: true })),
-      ...[...markedNames].map(([date, name]) => ({ date, name, paid: false })),
-    ]
-      .filter((h) => h.date >= first && h.date <= lastDay && h.date >= today)
-      .sort((a, b) => (a.date < b.date ? -1 : 1));
-    for (const h of all) {
-      const base = h.name.replace(/ \(day [278]\)$/, '');
-      const label = / \(day [78]\)$/.test(h.name) ? `${base} (last days)` : base;
-      const last = rows[rows.length - 1];
-      if (last && last.name === label && toDay(h.date) === toDay(last.end) + 1 && last.paid === h.paid) last.end = h.date;
-      else rows.push({ name: label, start: h.date, end: h.date, paid: h.paid });
-    }
-    return rows;
-  }, [views, holidayNames, markedNames, today]);
   const floor = -me.policy.allowNegative;
 
   const save = (next: Picks, d: ISODate) => {
@@ -180,8 +193,10 @@ export function PlanView({
     .reduce((s, [, v]) => s + v, 0);
   const loss = nextLoss(forecast, today);
   const low = forecast.low;
-  const atFirst = month.y === first.y && month.m === first.m;
-  const jumpOptions = Array.from({ length: 24 }, (_, i) => shiftMonth(first, i));
+  // Look back a year (to record sick days and other time already taken) and ahead two.
+  const earliest = shiftMonth(first, -12);
+  const atFirst = month.y === earliest.y && month.m === earliest.m;
+  const jumpOptions = Array.from({ length: 36 }, (_, i) => shiftMonth(earliest, i));
 
   // Swipe left or right on the calendar to change months (phones).
   const swipe = useRef<{ x: number; y: number } | null>(null);
@@ -278,6 +293,7 @@ export function PlanView({
                   const p = partsOf(n);
                   const adjacent = p.m !== v.m;
                   const past = d < today;
+                  const beforeStart = d <= me.startDate;
                   const work = isWorkday(me, n, hol);
                   const off = daysOff[d];
                   const offHours = off ? Math.round(off * perDay * 100) / 100 : 0;
@@ -296,6 +312,7 @@ export function PlanView({
                     kind ? `day-off ${kind}` : '',
                     below ? 'below' : '',
                     d === today ? 'today' : '',
+                    beforeStart ? 'before-start' : '',
                   ]
                     .filter(Boolean)
                     .join(' ');
@@ -305,11 +322,12 @@ export function PlanView({
                     marked ? marked : '',
                     kind === 'full' ? 'day off' : kind === 'half' ? 'half day off' : kind === 'custom' ? `${offHours} hours off` : '',
                     below ? 'puts you below zero' : '',
+                    off && beforeStart ? 'already counted in your starting balance' : '',
                     payday !== undefined ? `payday, ${amount(payday, perDay, units)} banked after` : '',
                   ]
                     .filter(Boolean)
                     .join('. ');
-                  const tappable = !past && work;
+                  const tappable = work;
                   return (
                     <button
                       key={d}
@@ -338,7 +356,11 @@ export function PlanView({
                         {adjacent && p.d === 1 ? <small>{MONTHS[p.m - 1].slice(0, 3)} </small> : null}
                         {p.d}
                       </span>
-                      {marked ? <span className="marked-dot" aria-hidden="true" /> : null}
+                      {holiday || marked ? (
+                        <span className={`cal-holiday ${holiday ? 'paid' : 'marked'}`} aria-hidden="true">
+                          {shortHoliday(holiday ?? (marked as string))}
+                        </span>
+                      ) : null}
                       {kind ? (
                         <span className={`off-mark ${popped === d ? 'pop' : ''}`} onAnimationEnd={() => setPopped(null)}>
                           {kind === 'full' ? <BeachUmbrella /> : <Car />}
@@ -354,20 +376,6 @@ export function PlanView({
             </div>
           ))}
         </div>
-        {inView.length > 0 ? (
-          <ul className="holiday-list" aria-label="Holidays in view">
-            {inView.map((h) => (
-              <li key={`${h.start}-${h.name}`} className={h.paid ? 'paid' : 'marked'}>
-                <span className="holiday-swatch" aria-hidden="true" />
-                <span className="holiday-name">{h.name}</span>
-                <span className="holiday-when">
-                  {h.start === h.end ? formatDate(h.start, 'short') : `${formatDate(h.start, 'short')}–${partsOf(toDay(h.end)).d}`}
-                  {h.paid ? ', paid' : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
       </section>
 
       <div className={`plan-bar ${forecast.firstOverdrawn ? 'problem' : ''}`} aria-live="polite">
@@ -386,8 +394,8 @@ export function PlanView({
           </p>
         ) : (
           <p>
-            Tap a workday to take it off. Tap again for a half day, or {narrow ? 'press and hold' : 'right-click'} for other hours. Green tags
-            show your balance on paydays.
+            Tap a workday to take it off, including past days like a sick day. Tap again for a half day, or{' '}
+            {narrow ? 'press and hold' : 'right-click'} for other hours. Green tags show your balance on paydays.
           </p>
         )}
       </div>

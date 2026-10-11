@@ -1916,3 +1916,70 @@ input[type='checkbox'] {
 .corgi .corgi-tongue {
   fill: #e98a8a;
 }
+.corgi .corgi-fur-dark {
+  fill: #c2742b;
+}
+
+/* Holidays live inside the day square */
+.cal-day {
+  min-height: 62px;
+}
+.cal-holiday {
+  display: block;
+  margin: 3px -0.22rem 0 0;
+  font-size: 0.57rem;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+  text-align: left;
+}
+.cal-holiday.paid {
+  color: var(--green);
+}
+.cal-holiday.marked {
+  color: var(--accent-ink);
+}
+.cal-day.holiday.weekend {
+  background: color-mix(in srgb, var(--green) 9%, transparent);
+  border-color: transparent;
+  color: var(--ink-2);
+}
+.cal-day:has(.cal-holiday.marked):not(.day-off) {
+  background: var(--accent-wash);
+}
+.cal-day.holiday::after,
+.marked-dot,
+.holiday-list {
+  display: none;
+}
+.cal-day.day-off .off-mark {
+  align-items: flex-end;
+  padding: 0 0 5px;
+}
+.cal-day.day-off.full:has(.cal-holiday) .icon-beach {
+  width: 20px;
+  height: 20px;
+}
+/* Past days stay editable, just quieter */
+.cal-day.past:not(.weekend) {
+  background: var(--surface);
+  border-color: var(--line-soft);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.cal-day.past.day-off {
+  opacity: 0.75;
+}
+@media (min-width: 960px) {
+  .cal-day {
+    min-height: 58px;
+  }
+}
+@media (min-width: 960px) {
+  .cal-holiday {
+    font-size: 0.62rem;
+  }
+}
