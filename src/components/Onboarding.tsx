@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { AccrualMethod, Household } from '../engine/types';
 import { blankMemberInput, EVENTS_PER_YEAR, METHOD_LABELS, newHousehold, newMember, type NewMemberInput } from '../data/defaults';
-import { days, hours, round2 } from '../format';
+import { hours, round2 } from '../format';
 import { Field, NumberInput } from './ui';
 
 function PersonSetup({ title, value, onChange }: { title: string; value: NewMemberInput; onChange: (v: NewMemberInput) => void }) {
@@ -19,7 +19,7 @@ function PersonSetup({ title, value, onChange }: { title: string; value: NewMemb
           {(id) => <input id={id} type="date" value={value.asOf} onChange={(e) => e.target.value && set({ asOf: e.target.value })} />}
         </Field>
       </div>
-      <Field label="How often PTO is added">
+      <Field label="How often you’re paid">
         {(id) => (
           <select id={id} value={value.method} onChange={(e) => set({ method: e.target.value as AccrualMethod })}>
             {Object.entries(METHOD_LABELS).map(([k, v]) => (
@@ -32,8 +32,8 @@ function PersonSetup({ title, value, onChange }: { title: string; value: NewMemb
       </Field>
       <div className="row">
         <Field
-          label={value.method === 'annual' ? 'Hours each year' : 'Hours added each time'}
-          hint={value.rate ? `About ${hours(yearly)} a year, or ${days(yearly, 8)} of 8 hours` : 'Your paystub lists this as accrual or earned hours.'}
+          label={value.method === 'annual' ? 'Hours each year' : 'PTO added each payday'}
+          hint={value.rate ? `About ${hours(yearly)} a year` : 'Your paystub lists this as accrual or earned hours.'}
         >
           {(id) => <NumberInput id={id} value={value.rate} allowEmpty placeholder="e.g. 7.69" suffix="h" onChange={(v) => set({ rate: v })} />}
         </Field>
@@ -86,7 +86,7 @@ export function Onboarding({
         }}
       >
         <PersonSetup title="Your PTO" value={you} onChange={setYou} />
-        <p className="hint">Balances show in days of 8 hours. You can change the length of a day in My rules.</p>
+        <p className="hint">You can add holidays, caps and carryover rules in Settings.</p>
         {error ? <p className="error">{error}</p> : null}
         <button type="submit" className="primary wide" disabled={!ready || busy}>
           {busy ? (busyLabel ?? 'Creating…') : 'Create plan'}

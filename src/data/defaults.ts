@@ -3,11 +3,11 @@ import type { AccrualMethod, Household, Member } from '../engine/types';
 import { newId, PERSON_COLORS } from './ids';
 
 export const METHOD_LABELS: Record<AccrualMethod, string> = {
+  biweekly: 'Every 2 weeks',
   weekly: 'Every week',
-  biweekly: 'Every other week',
   semimonthly: 'Twice a month (15th and last day)',
   monthly: 'Once a month',
-  annual: 'All at once each year',
+  annual: 'Once a year (PTO granted up front)',
 };
 
 /** Accrual events per year, for "about N hours a year" hints. */
@@ -67,7 +67,7 @@ export function newHousehold(members: Member[]): Household {
     name: `${members[0].name}'s plan`,
     members,
     trips: [],
-    units: 'days',
+    units: 'hours',
     updatedAt: new Date().toISOString(),
   };
 }

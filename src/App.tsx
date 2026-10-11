@@ -7,17 +7,15 @@ import { useStore } from './data/store';
 import { CloudGate, Welcome } from './components/Entry';
 import { Onboarding } from './components/Onboarding';
 import { PlanView } from './components/PlanView';
-import { RulesView } from './components/RulesView';
 import { SettingsView } from './components/SettingsView';
 import { TripEditor } from './components/TripEditor';
 import { TripsView } from './components/TripsView';
 
-type Tab = 'plan' | 'trips' | 'rules' | 'settings';
+type Tab = 'plan' | 'trips' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: ReactElement }[] = [
   { id: 'plan', label: 'Plan', icon: <path d="M5 5h14v15H5zM5 9h14M9 3v4M15 3v4M9 13h2M13 13h2M9 16h2" /> },
   { id: 'trips', label: 'Time off', icon: <path d="M4 7h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4zM14 7v12" /> },
-  { id: 'rules', label: 'My rules', icon: <path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3" /> },
   { id: 'settings', label: 'Settings', icon: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" /> },
 ];
 
@@ -120,7 +118,6 @@ export default function App() {
           <PlanView household={household} today={today} update={update} />
         ) : null}
         {tab === 'trips' ? <TripsView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={planTrip} /> : null}
-        {tab === 'rules' ? <RulesView household={household} update={update} /> : null}
         {tab === 'settings' ? <SettingsView store={store} /> : null}
       </main>
 

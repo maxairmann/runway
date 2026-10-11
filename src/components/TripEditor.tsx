@@ -24,7 +24,7 @@ export function TripEditor({
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {
-  const units = household.units ?? 'days';
+  const units = household.units ?? 'hours';
   const [draft, setDraft] = useState<Trip>(trip);
   const set = (patch: Partial<Trip>) => setDraft((d) => ({ ...d, ...patch }));
   const valid = draft.memberIds.length > 0 && draft.end >= draft.start;

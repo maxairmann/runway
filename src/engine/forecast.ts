@@ -98,7 +98,8 @@ export function usageFor(member: Member, trips: Trip[], untilDay: number): Map<n
     for (let n = toDay(trip.start); n <= toDay(trip.end); n++) {
       if (!work.has(weekdayOf(n)) || holidays.has(n)) continue;
       const list = usage.get(n) ?? [];
-      list.push({ hours: half.has(n) ? member.policy.hoursPerDay / 2 : hours, tripId: trip.id });
+      const custom = trip.dayHours?.[fromDay(n)];
+      list.push({ hours: custom ?? (half.has(n) ? member.policy.hoursPerDay / 2 : hours), tripId: trip.id });
       usage.set(n, list);
     }
   }

@@ -4,7 +4,7 @@ import { daysInMonth, fromDay, partsOf, toDay, weekdayOf, type ISODate } from '.
 import { memberHolidays } from './holidays';
 import type { Member, Trip, TripStatus } from './types';
 
-/** Picked days: 1 = full day off, 0.5 = half day. */
+/** Days off, as a share of a full day: 1 = full day, 0.5 = half day, anything else = custom hours. */
 export type Picks = Record<ISODate, number>;
 
 export interface PickGroup {
@@ -13,6 +13,8 @@ export interface PickGroup {
   /** The picked days, in order. */
   days: ISODate[];
   halfDays: ISODate[];
+  /** Custom shares of a day (neither 1 nor 0.5). */
+  custom: Record<ISODate, number>;
 }
 
 /** Holidays as day numbers, per member, covering a span of years. */
@@ -53,15 +55,17 @@ export function groupPicks(picks: Picks, members: Member[]): PickGroup[] {
       cur.end = d;
       cur.days.push(d);
     } else {
-      cur = { start: d, end: d, days: [d], halfDays: [] };
+      cur = { start: d, end: d, days: [d], halfDays: [], custom: {} };
       groups.push(cur);
     }
     if (picks[d] === 0.5) cur.halfDays.push(d);
+    else if (picks[d] !== 1) cur.custom[d] = picks[d];
   }
   return groups;
 }
 
-export function groupToTrip(g: PickGroup, memberIds: string[], id: string, title: string, status: TripStatus): Trip {
+export function groupToTrip(g: PickGroup, memberIds: string[], id: string, title: string, status: TripStatus, hoursPerDay = 8): Trip {
+  const custom = Object.entries(g.custom);
   return {
     id,
     title,
@@ -71,6 +75,7 @@ export function groupToTrip(g: PickGroup, memberIds: string[], id: string, title
     hoursPerDay: null,
     dayFraction: 1,
     halfDays: g.halfDays.length > 0 ? g.halfDays : undefined,
+    dayHours: custom.length > 0 ? Object.fromEntries(custom.map(([d, f]) => [d, Math.round(f * hoursPerDay * 100) / 100])) : undefined,
     status,
   };
 }
@@ -78,7 +83,9 @@ export function groupToTrip(g: PickGroup, memberIds: string[], id: string, title
 /** Trips for picks, for previewing them in the forecast before they're saved. */
 export function picksAsTrips(picks: Picks, members: Member[], memberIds: string[]): Trip[] {
   const going = members.filter((m) => memberIds.includes(m.id));
-  return groupPicks(picks, going).map((g, i) => groupToTrip(g, memberIds, `__pick_${i}__`, 'Picked days', 'tentative'));
+  return groupPicks(picks, going).map((g, i) =>
+    groupToTrip(g, memberIds, `__pick_${i}__`, 'Picked days', 'tentative', going[0]?.policy.hoursPerDay ?? 8),
+  );
 }
 
 /**
@@ -98,7 +105,8 @@ export function daysOffFromTrips(trips: Trip[], member: Member): Picks {
     for (let n = toDay(t.start); n <= toDay(t.end); n++) {
       if (!isWorkday(member, n, hol)) continue;
       const d = fromDay(n);
-      out[d] = half.has(d) ? 0.5 : Math.min(1, base);
+      const custom = t.dayHours?.[d];
+      out[d] = custom !== undefined ? Math.min(1, custom / member.policy.hoursPerDay) : half.has(d) ? 0.5 : Math.min(1, base);
     }
   }
   return out;
@@ -106,15 +114,23 @@ export function daysOffFromTrips(trips: Trip[], member: Member): Picks {
 
 /** Days off back into trips: back-to-back days (across weekends and holidays) become one trip. */
 export function tripsFromDaysOff(days: Picks, member: Member, makeId: () => string): Trip[] {
-  return groupPicks(days, [member]).map((g) => groupToTrip(g, [member.id], makeId(), 'Time off', 'confirmed'));
+  return groupPicks(days, [member]).map((g) => groupToTrip(g, [member.id], makeId(), 'Time off', 'confirmed', member.policy.hoursPerDay));
 }
 
-/** Tap a day: off (full) → half day → back to working. */
+/** Tap a day: off (full) → half day → back to working. A custom amount clears on tap. */
 export function cycleDay(days: Picks, d: ISODate): Picks {
   const next = { ...days };
   if (!days[d]) next[d] = 1;
   else if (days[d] === 1) next[d] = 0.5;
   else delete next[d];
+  return next;
+}
+
+/** Set a day to an exact share of a full day; 0 clears it. */
+export function setDay(days: Picks, d: ISODate, share: number): Picks {
+  const next = { ...days };
+  if (share <= 0) delete next[d];
+  else next[d] = Math.min(1, share);
   return next;
 }
 

@@ -26,7 +26,7 @@ export function makeDemo(today: ISODate = todayISO()): Household {
   return {
     id: 'demo',
     name: "Sam's plan",
-    units: 'days',
+    units: 'hours',
     updatedAt: new Date().toISOString(),
     members: [
       {

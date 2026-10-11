@@ -5,7 +5,7 @@ import { amount } from '../format';
 
 /** A trip as a boarding-pass stub: the details on the left, what it costs on the tear-off. */
 export function TripCard({ trip, household, onOpen }: { trip: Trip; household: Household; onOpen?: () => void }) {
-  const units = household.units ?? 'days';
+  const units = household.units ?? 'hours';
   const me = household.members[0];
   const span = toDay(trip.end) - toDay(trip.start) + 1;
   const halves = trip.halfDays?.length ?? 0;

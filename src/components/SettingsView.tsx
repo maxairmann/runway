@@ -3,6 +3,7 @@ import { formatDate } from '../engine/dates';
 import type { Household } from '../engine/types';
 import type { Store } from '../data/store';
 import { Segmented } from './ui';
+import { PtoRules } from './RulesView';
 
 function download(name: string, text: string) {
   const blob = new Blob([text], { type: 'application/json' });
@@ -30,9 +31,12 @@ export function SettingsView({ store }: { store: Store }) {
   return (
     <div className="settings">
       <h1>Settings</h1>
+      <p className="hint">Match your payday and PTO rules to what HR or your paystub says. Changes save as you go.</p>
+
+      <PtoRules household={household} update={update} />
 
       <section>
-        <h2>Plan</h2>
+        <h2>Display</h2>
         <label className="field">
           <span className="label">Plan name</span>
           <input id="plan-name" value={household.name} onChange={(e) => update((h) => ({ ...h, name: e.target.value }))} />
@@ -41,7 +45,7 @@ export function SettingsView({ store }: { store: Store }) {
           <span className="label">Show time in</span>
           <Segmented
             label="Show time in"
-            value={household.units ?? 'days'}
+            value={household.units ?? 'hours'}
             onChange={(units) => update((h) => ({ ...h, units }))}
             options={[
               { value: 'days', label: 'Days' },

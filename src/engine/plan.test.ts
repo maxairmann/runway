@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cycleDay, daysOffFromTrips, groupPicks, monthGrid, picksAsTrips, tripsFromDaysOff } from './plan';
+import { cycleDay, daysOffFromTrips, groupPicks, monthGrid, picksAsTrips, setDay, tripsFromDaysOff } from './plan';
 import { tripCost } from './forecast';
 import type { Member } from './types';
 
@@ -63,5 +63,19 @@ describe('days off as the source of truth', () => {
   it('turns a trip of partial hours into half or full days', () => {
     const t = { id: 'x', title: '', start: '2026-11-16', end: '2026-11-17', memberIds: ['me'], hoursPerDay: 3, status: 'confirmed' as const };
     expect(daysOffFromTrips([t], me)).toEqual({ '2026-11-16': 0.5, '2026-11-17': 0.5 });
+  });
+});
+
+describe('custom hours on a day', () => {
+  it('stores 2 hours off as hours, charges exactly that, and round-trips', () => {
+    const days = setDay({ '2026-11-16': 1 }, '2026-11-17', 2 / 8);
+    const [trip] = tripsFromDaysOff(days, me, () => 'c');
+    expect(trip.dayHours).toEqual({ '2026-11-17': 2 });
+    expect(tripCost(me, trip)).toBe(10);
+    expect(daysOffFromTrips([trip], me)).toEqual({ '2026-11-16': 1, '2026-11-17': 0.25 });
+  });
+
+  it('clears a day when set to zero', () => {
+    expect(setDay({ '2026-11-17': 0.25 }, '2026-11-17', 0)).toEqual({});
   });
 });

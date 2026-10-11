@@ -71,6 +71,8 @@ export interface Trip {
   dayFraction?: number;
   /** Days inside the trip that are only half days off. */
   halfDays?: ISODate[];
+  /** Days inside the trip with a custom number of hours off (neither full nor half). */
+  dayHours?: Record<ISODate, number>;
   status: TripStatus;
 }
 

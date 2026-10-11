@@ -3,7 +3,7 @@ import { formatDate, todayISO, type ISODate } from '../engine/dates';
 import { HOLIDAY_SET_LABELS, presetHolidays } from '../engine/holidays';
 import type { AccrualMethod, HolidaySet, Household, Member } from '../engine/types';
 import { EVENTS_PER_YEAR, METHOD_LABELS } from '../data/defaults';
-import { days, hours, round2 } from '../format';
+import { hours, round2 } from '../format';
 import { Field, NumberInput } from './ui';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -13,7 +13,7 @@ function anchorLabel(method: AccrualMethod): string {
   switch (method) {
     case 'weekly':
     case 'biweekly':
-      return 'A recent payday when you earned PTO';
+      return 'A recent payday';
     case 'monthly':
       return 'A date you earn PTO (the day of the month repeats)';
     case 'annual':
@@ -23,8 +23,8 @@ function anchorLabel(method: AccrualMethod): string {
   }
 }
 
-/** Your PTO rules. Changes save as you make them. */
-export function RulesView({
+/** Payday and PTO rules, shown at the top of Settings. Changes save as you make them. */
+export function PtoRules({
   household,
   update,
 }: {
@@ -48,16 +48,68 @@ export function RulesView({
   const presets = presetHolidays(m.holidaySet, year, year);
 
   return (
-    <div className="rules">
-      <h1>My PTO rules</h1>
-      <p className="hint">Match these to what HR or your paystub says. Changes save as you go.</p>
-      <fieldset>
-        <legend>You</legend>
-        <Field label="Name">{(id) => <input id={id} value={m.name} onChange={(e) => setM({ ...m, name: e.target.value })} />}</Field>
-      </fieldset>
+    <>
 
-      <fieldset>
-        <legend>Balance</legend>
+      <section>
+        <h2>Payday</h2>
+        <p className="hint">PTO is added each payday. Your balance on paydays shows on the Plan calendar.</p>
+        <div className="row">
+            <Field label={anchorLabel(p.method)}>
+            {(id) => <input id={id} type="date" value={p.anchor} onChange={(e) => e.target.value && setP({ anchor: e.target.value })} />}
+          </Field>
+        </div>
+        <Field label="How often you’re paid">
+          {(id) => (
+            <select id={id} value={p.method} onChange={(e) => setP({ method: e.target.value as AccrualMethod })}>
+              {Object.entries(METHOD_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <div className="row">
+          <Field label={p.method === 'annual' ? 'PTO granted each year' : 'PTO added each payday'} hint={`About ${hours(yearly)} a year`}>
+            {(id) => <NumberInput id={id} value={p.rate} suffix="h" onChange={(v) => setP({ rate: v ?? 0 })} />}
+          </Field>
+        </div>
+        <div className="subhead">Rate changes</div>
+        {p.rateChanges.length > 0 ? (
+          <ul className="plain-list">
+            {p.rateChanges.map((rc) => (
+              <li key={rc.from}>
+                From {formatDate(rc.from, 'medium')}: {hours(rc.rate)} each time
+                <button type="button" className="link" onClick={() => setP({ rateChanges: p.rateChanges.filter((x) => x.from !== rc.from) })}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="hint">Add one if your rate goes up on a work anniversary.</p>
+        )}
+        <div className="row end">
+          <Field label="Starting">{(id) => <input id={id} type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />}</Field>
+          <Field label="New hours each time">
+            {(id) => <NumberInput id={id} value={rateValue} allowEmpty suffix="h" onChange={setRateValue} />}
+          </Field>
+          <button
+            type="button"
+            disabled={!rateFrom || rateValue === null}
+            onClick={() => {
+              if (rateValue === null) return;
+              setP({ rateChanges: [...p.rateChanges.filter((x) => x.from !== rateFrom), { from: rateFrom, rate: rateValue }] });
+              setRateFrom('');
+              setRateValue(null);
+            }}
+          >
+            Add rate change
+          </button>
+        </div>
+      </section>
+      <section>
+        <h2>Balance</h2>
         <div className="row">
           <Field label="Balance on">
             {(id) => <input id={id} type="date" value={m.startDate} onChange={(e) => e.target.value && setM({ ...m, startDate: e.target.value })} />}
@@ -100,67 +152,11 @@ export function RulesView({
             Add correction
           </button>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend>How PTO is earned</legend>
-        <Field label="How often">
-          {(id) => (
-            <select id={id} value={p.method} onChange={(e) => setP({ method: e.target.value as AccrualMethod })}>
-              {Object.entries(METHOD_LABELS).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <div className="row">
-          <Field label={p.method === 'annual' ? 'Hours granted' : 'Hours each time'} hint={`About ${hours(yearly)} (${days(yearly, p.hoursPerDay)}) a year`}>
-            {(id) => <NumberInput id={id} value={p.rate} suffix="h" onChange={(v) => setP({ rate: v ?? 0 })} />}
-          </Field>
-          <Field label={anchorLabel(p.method)}>
-            {(id) => <input id={id} type="date" value={p.anchor} onChange={(e) => e.target.value && setP({ anchor: e.target.value })} />}
-          </Field>
-        </div>
 
-        <div className="subhead">Rate changes</div>
-        {p.rateChanges.length > 0 ? (
-          <ul className="plain-list">
-            {p.rateChanges.map((rc) => (
-              <li key={rc.from}>
-                From {formatDate(rc.from, 'medium')}: {hours(rc.rate)} each time
-                <button type="button" className="link" onClick={() => setP({ rateChanges: p.rateChanges.filter((x) => x.from !== rc.from) })}>
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="hint">Add one if your rate goes up on a work anniversary.</p>
-        )}
-        <div className="row end">
-          <Field label="Starting">{(id) => <input id={id} type="date" value={rateFrom} onChange={(e) => setRateFrom(e.target.value)} />}</Field>
-          <Field label="New hours each time">
-            {(id) => <NumberInput id={id} value={rateValue} allowEmpty suffix="h" onChange={setRateValue} />}
-          </Field>
-          <button
-            type="button"
-            disabled={!rateFrom || rateValue === null}
-            onClick={() => {
-              if (rateValue === null) return;
-              setP({ rateChanges: [...p.rateChanges.filter((x) => x.from !== rateFrom), { from: rateFrom, rate: rateValue }] });
-              setRateFrom('');
-              setRateValue(null);
-            }}
-          >
-            Add rate change
-          </button>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Employer rules</legend>
+      <section>
+        <h2>Employer rules</h2>
         <div className="row">
           <Field label="Maximum balance" hint="Earning stops at this amount. Leave empty for no cap.">
             {(id) => <NumberInput id={id} value={p.maxBalance} allowEmpty placeholder="No cap" suffix="h" onChange={(v) => setP({ maxBalance: v })} />}
@@ -212,10 +208,10 @@ export function RulesView({
             </div>
           ) : null}
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend>Planning</legend>
+      <section>
+        <h2>Workdays and holidays</h2>
         <div className="row">
           <Field label="A full day off is">
             {(id) => <NumberInput id={id} value={p.hoursPerDay} step={0.5} suffix="h" onChange={(v) => setP({ hoursPerDay: v && v > 0 ? v : 8 })} />}
@@ -278,7 +274,7 @@ export function RulesView({
             Add holiday
           </button>
         </div>
-      </fieldset>
-    </div>
+      </section>
+    </>
   );
 }
