@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, formatRange, todayISO, type ISODate } from './engine/dates';
 import type { Trip } from './engine/types';
 import { newId } from './data/ids';
-import { daysOffFromTrips, tripsFromDaysOff } from './engine/plan';
+import { daysOffFromTrips, splitDaysOff, tripsFromSplit } from './engine/plan';
 import { useStore } from './data/store';
 import { CloudGate, Welcome } from './components/Entry';
 import { CorgiMark } from './components/Corgi';
@@ -161,8 +161,14 @@ export default function App() {
           onSave={(t) => {
             update((h) => {
               const others = h.trips.filter((x) => x.id !== t.id);
-              const days = { ...daysOffFromTrips(others, me), ...daysOffFromTrips([t], me) };
-              return { ...h, trips: tripsFromDaysOff(days, me, () => newId('trip')) };
+              const days = splitDaysOff(others, me);
+              const mine = daysOffFromTrips([t], me);
+              for (const d of Object.keys(mine)) {
+                delete days.pto[d];
+                delete days.sick[d];
+              }
+              Object.assign(t.sick ? days.sick : days.pto, mine);
+              return { ...h, trips: tripsFromSplit(days, me, () => newId('trip')) };
             });
             setEditor(null);
           }}

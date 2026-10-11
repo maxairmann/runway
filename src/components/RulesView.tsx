@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { formatDate, todayISO, type ISODate } from '../engine/dates';
 import { JEWISH_HOLIDAY_NAMES, US_HOLIDAY_NAMES, paidNames } from '../engine/holidays';
-import type { AccrualMethod, Household, Member } from '../engine/types';
+import type { AccrualMethod, Household, Member, SickPolicy } from '../engine/types';
 import { EVENTS_PER_YEAR, METHOD_LABELS } from '../data/defaults';
 import { hours, round2 } from '../format';
-import { Field, NumberInput } from './ui';
+import { Field, NumberInput, Segmented } from './ui';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -44,6 +44,18 @@ export function PtoRules({
   const setP = (patch: Partial<Member['policy']>) => setM({ ...m, policy: { ...m.policy, ...patch } });
   const yearly = round2(p.rate * EVENTS_PER_YEAR[p.method]);
   const [resetMonth, resetDay] = (p.resetDate ?? '01-01').split('-').map(Number);
+  const sick: SickPolicy = m.sick ?? {
+    separate: false,
+    method: 'payday',
+    rate: 0,
+    grantDate: '01-01',
+    resetsYearly: false,
+    maxBalance: null,
+    asOf: todayISO(),
+    balance: 0,
+  };
+  const setSick = (patch: Partial<SickPolicy>) => setM({ ...m, sick: { ...sick, ...patch } });
+  const [grantMonth, grantDay] = sick.grantDate.split('-').map(Number);
   const paid = paidNames(m);
   const showUs = m.usHolidays ?? true;
   const showJewish = !!m.jewishHolidays;
@@ -216,6 +228,84 @@ export function PtoRules({
             </div>
           ) : null}
         </div>
+      </section>
+
+      <section>
+        <h2>Sick time</h2>
+        <Segmented
+          label="Sick days"
+          value={sick.separate ? 'separate' : 'pto'}
+          options={[
+            { value: 'pto', label: 'Comes out of PTO' },
+            { value: 'separate', label: 'Separate balance' },
+          ]}
+          onChange={(v) => setSick({ separate: v === 'separate' })}
+        />
+        <p className="hint">
+          To mark a sick day, press and hold a day on the calendar (or right-click it) and choose Sick day.
+          {sick.separate ? '' : ' It uses PTO like any other day off.'}
+        </p>
+        {sick.separate ? (
+          <>
+            <div className="row">
+              <Field label="Sick time you have">
+                {(id) => <NumberInput id={id} value={sick.balance} suffix="h" onChange={(v) => setSick({ balance: v ?? 0, asOf: todayISO() })} />}
+              </Field>
+              <Field label="You get it">
+                {(id) => (
+                  <select id={id} value={sick.method} onChange={(e) => setSick({ method: e.target.value as SickPolicy['method'] })}>
+                    <option value="payday">Each payday</option>
+                    <option value="annual">Once a year</option>
+                  </select>
+                )}
+              </Field>
+            </div>
+            <p className="hint">Balance as of {formatDate(sick.asOf, 'medium')}. Update it any time from a paystub.</p>
+            <div className="row">
+              <Field label={sick.method === 'annual' ? 'Hours each year' : 'Hours each payday'}>
+                {(id) => <NumberInput id={id} value={sick.rate} step={0.01} suffix="h" onChange={(v) => setSick({ rate: Math.max(0, v ?? 0) })} />}
+              </Field>
+              <Field label="Maximum balance" hint="Leave empty for no cap.">
+                {(id) => <NumberInput id={id} value={sick.maxBalance} allowEmpty placeholder="No cap" suffix="h" onChange={(v) => setSick({ maxBalance: v })} />}
+              </Field>
+            </div>
+            {sick.method === 'annual' ? (
+              <>
+                <div className="field">
+                  <span className="label">New hours arrive on</span>
+                  <div className="row tight">
+                    <select
+                      aria-label="Grant month"
+                      value={grantMonth}
+                      onChange={(e) => setSick({ grantDate: `${String(e.target.value).padStart(2, '0')}-${String(grantDay).padStart(2, '0')}` })}
+                    >
+                      {MONTHS.map((mo, i) => (
+                        <option key={mo} value={i + 1}>
+                          {mo}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Grant day"
+                      value={grantDay}
+                      onChange={(e) => setSick({ grantDate: `${String(grantMonth).padStart(2, '0')}-${String(e.target.value).padStart(2, '0')}` })}
+                    >
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <label className="check">
+                  <input type="checkbox" checked={sick.resetsYearly} onChange={(e) => setSick({ resetsYearly: e.target.checked })} />
+                  Unused sick time is lost when the new hours arrive
+                </label>
+              </>
+            ) : null}
+          </>
+        ) : null}
       </section>
 
       <section>

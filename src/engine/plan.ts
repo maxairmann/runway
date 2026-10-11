@@ -117,6 +117,36 @@ export function tripsFromDaysOff(days: Picks, member: Member, makeId: () => stri
   return groupPicks(days, [member]).map((g) => groupToTrip(g, [member.id], makeId(), 'Time off', 'confirmed', member.policy.hoursPerDay));
 }
 
+/** Days off split by kind: planned time off and sick days. A day is in at most one. */
+export interface DaysOff {
+  pto: Picks;
+  sick: Picks;
+}
+
+export function splitDaysOff(trips: Trip[], member: Member): DaysOff {
+  return {
+    pto: daysOffFromTrips(trips.filter((t) => !t.sick), member),
+    sick: daysOffFromTrips(trips.filter((t) => t.sick), member),
+  };
+}
+
+export function tripsFromSplit(days: DaysOff, member: Member, makeId: () => string): Trip[] {
+  return [
+    ...tripsFromDaysOff(days.pto, member, makeId),
+    ...tripsFromDaysOff(days.sick, member, makeId).map((t) => ({ ...t, title: 'Sick', sick: true })),
+  ];
+}
+
+/** Set a day to a share of a full day, as time off or a sick day; 0 clears it. */
+export function setDayKind(days: DaysOff, d: ISODate, share: number, sick: boolean): DaysOff {
+  const pto = { ...days.pto };
+  const sk = { ...days.sick };
+  delete pto[d];
+  delete sk[d];
+  if (share > 0) (sick ? sk : pto)[d] = Math.min(1, share);
+  return { pto, sick: sk };
+}
+
 /** Tap a day: off (full) → half day → back to working. A custom amount clears on tap. */
 export function cycleDay(days: Picks, d: ISODate): Picks {
   const next = { ...days };

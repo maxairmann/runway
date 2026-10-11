@@ -5,7 +5,7 @@
 // Order within a day: year-end reset, then accrual (clipped at the max balance),
 // then any time off taken that day, then a checkpoint overrides the result.
 
-import { partsOf, daysInMonth, fromDay, toDay, weekdayOf, type ISODate } from './dates';
+import { partsOf, daysInMonth, fromDay, isoOf, toDay, weekdayOf, type ISODate } from './dates';
 import { memberHolidays } from './holidays';
 import type { Household, Member, Policy, Trip } from './types';
 
@@ -91,8 +91,10 @@ export function usageFor(member: Member, trips: Trip[], untilDay: number): Map<n
   const holidays = holidaySet(member, startYear - 1, endYear + 1);
   const work = new Set(member.policy.workDays);
   const usage = new Map<number, { hours: number; tripId: string }[]>();
+  const sickSeparate = !!member.sick?.separate;
   for (const trip of trips) {
     if (!trip.memberIds.includes(member.id)) continue;
+    if (trip.sick && sickSeparate) continue; // comes out of the sick balance instead
     const hours = trip.hoursPerDay ?? member.policy.hoursPerDay * (trip.dayFraction ?? 1);
     const half = new Set((trip.halfDays ?? []).map(toDay));
     for (let n = toDay(trip.start); n <= toDay(trip.end); n++) {
@@ -344,4 +346,45 @@ export function nextLoss(f: MemberForecast, from: ISODate): { date: ISODate; hou
     .filter((e) => e.date === loss.date && (e.kind === 'forfeit' || e.kind === 'capped'))
     .reduce((s, e) => s + Math.abs(e.hours), 0);
   return { date: loss.date, hours };
+}
+
+// Sick time with its own balance runs through the same engine as a stand-in member.
+const sickStandIns = new WeakMap<Member, Member>();
+
+/** The sick balance as a member of its own, or null when sick days come out of PTO. */
+export function sickMember(member: Member): Member | null {
+  const s = member.sick;
+  if (!s?.separate) return null;
+  let sm = sickStandIns.get(member);
+  if (!sm) {
+    const annual = s.method === 'annual';
+    const [gm, gd] = s.grantDate.split('-').map(Number);
+    const resets = annual && s.resetsYearly;
+    sm = {
+      ...member,
+      startDate: s.asOf,
+      startBalance: s.balance,
+      checkpoints: [],
+      sick: undefined,
+      policy: {
+        ...member.policy,
+        method: annual ? 'annual' : member.policy.method,
+        anchor: annual ? isoOf(partsOf(toDay(s.asOf)).y - 1, gm, gd) : member.policy.anchor,
+        rate: s.rate,
+        rateChanges: [],
+        maxBalance: s.maxBalance,
+        carryoverCap: resets ? 0 : null,
+        resetDate: resets ? s.grantDate : null,
+        allowNegative: 0,
+      },
+    };
+    sickStandIns.set(member, sm);
+  }
+  return sm;
+}
+
+/** Forecast of the separate sick balance, or null when sick days come out of PTO. */
+export function forecastSick(member: Member, trips: Trip[], opts: ForecastOptions): MemberForecast | null {
+  const sm = sickMember(member);
+  return sm ? forecastMember(sm, trips.filter((t) => t.sick), opts) : null;
 }

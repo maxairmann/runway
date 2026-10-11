@@ -42,6 +42,24 @@ export interface Checkpoint {
   balance: number;
 }
 
+export interface SickPolicy {
+  /** true: sick days come out of their own balance. false: they come out of PTO. */
+  separate: boolean;
+  /** Earned each payday (like PTO) or granted once a year. */
+  method: 'payday' | 'annual';
+  /** Hours added each payday, or granted each year. */
+  rate: number;
+  /** 'MM-DD' the yearly grant lands. */
+  grantDate: string;
+  /** Unused hours are lost when the next yearly grant lands. */
+  resetsYearly: boolean;
+  /** Earning stops at this balance. */
+  maxBalance: number | null;
+  /** The known sick balance at the end of this date. */
+  asOf: ISODate;
+  balance: number;
+}
+
 export interface Member {
   id: string;
   name: string;
@@ -63,6 +81,8 @@ export interface Member {
   /** Holidays your employer gives off (names, e.g. "Thanksgiving"). Everything else is only a label. */
   paidHolidays?: string[];
   checkpoints: Checkpoint[];
+  /** How sick time works. Missing = sick days come out of PTO. */
+  sick?: SickPolicy;
 }
 
 export type TripStatus = 'tentative' | 'confirmed';
@@ -82,6 +102,8 @@ export interface Trip {
   /** Days inside the trip with a custom number of hours off (neither full nor half). */
   dayHours?: Record<ISODate, number>;
   status: TripStatus;
+  /** Sick time rather than planned time off. */
+  sick?: boolean;
 }
 
 export type Units = 'days' | 'hours';

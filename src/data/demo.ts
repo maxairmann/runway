@@ -22,6 +22,7 @@ export function makeDemo(today: ISODate = todayISO()): Household {
   const dentist = onOrAfter(addDays(today, 12), 2);
   const wedding = onOrAfter(addDays(today, 115), 4);
   const lisbon = onOrAfter(addDays(today, 240), 1);
+  const sickDay = onOrAfter(addDays(today, -9), 3);
 
   return {
     id: 'demo',
@@ -43,6 +44,7 @@ export function makeDemo(today: ISODate = todayISO()): Household {
         // Labeled but worked: MLK Day, Presidents' Day, Juneteenth, Columbus Day, Veterans Day, and the Jewish holidays.
         paidHolidays: ["New Year's Day", 'Memorial Day', 'Independence Day', 'Labor Day', 'Thanksgiving', 'Day after Thanksgiving', 'Christmas Day'],
         checkpoints: [],
+        sick: { separate: true, method: 'payday', rate: 1.5, grantDate: '01-01', resetsYearly: false, maxBalance: null, asOf: start, balance: 20 },
         policy: {
           method: 'semimonthly',
           anchor: start,
@@ -58,6 +60,7 @@ export function makeDemo(today: ISODate = todayISO()): Household {
       },
     ],
     trips: [
+      { id: newId('trip'), title: 'Sick', start: sickDay, end: sickDay, memberIds: [SAM], hoursPerDay: null, status: 'confirmed', sick: true },
       { id: newId('trip'), title: 'Dentist', start: dentist, end: dentist, memberIds: [SAM], hoursPerDay: null, halfDays: [dentist], status: 'confirmed' },
       { id: 'demo_weekend', title: 'Long weekend in Asheville', start: weekend, end: addDays(weekend, 3), memberIds: [SAM], hoursPerDay: null, status: 'confirmed' },
       { id: newId('trip'), title: "Priya's wedding", start: wedding, end: addDays(wedding, 1), memberIds: [SAM], hoursPerDay: null, status: 'confirmed' },

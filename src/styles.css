@@ -15,6 +15,7 @@
   --red-wash: #fbe9e7;
   --green: #2f7a4f;
   --focus: #6d4aa8;
+  --sick: #2a7d96;
   --link: #5b3a96;
   --accent: #6d4aa8;
   --accent-wash: #f1ecfa;
@@ -45,6 +46,7 @@
     --green: #5cb684;
     --link: #c3aef2;
     --focus: #b69cf0;
+    --sick: #6cc3d9;
     --accent: #a98be8;
     --accent-wash: #2a2340;
     --accent-ink: #d9cbfa;
@@ -68,6 +70,7 @@
   --green: #5cb684;
   --link: #c3aef2;
   --focus: #b69cf0;
+    --sick: #6cc3d9;
   --accent: #a98be8;
   --accent-wash: #2a2340;
   --accent-ink: #d9cbfa;
@@ -2013,4 +2016,65 @@ input[type='checkbox'] {
 }
 .cal-day.day-off:has(.cal-holiday) .part-label {
   display: none;
+}
+
+/* Sick days: a thermometer on a cool blue square */
+.icon-sick {
+  width: 24px;
+  height: 24px;
+}
+.icon-sick .tube {
+  fill: var(--surface);
+  stroke: var(--ink-2);
+  stroke-width: 1.3;
+}
+.icon-sick .mercury {
+  fill: #d9483b;
+}
+.icon-sick .ticks {
+  stroke: var(--ink-2);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+.cal-day.day-off.sick {
+  background: color-mix(in srgb, var(--sick) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--sick) 70%, var(--surface));
+}
+.cal-day.day-off.sick.half,
+.cal-day.day-off.sick.custom {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--sick) 24%, var(--surface)) var(--fill, 50%),
+    var(--surface) var(--fill, 50%)
+  );
+}
+.cal-day.day-off.sick.half .icon-sick,
+.cal-day.day-off.sick.custom .icon-sick {
+  width: 18px;
+  height: 18px;
+}
+.cal-day.day-off.sick.below {
+  background: var(--red-wash);
+  border-color: var(--red);
+}
+.cal-day.day-off.sick .part-label {
+  color: var(--sick);
+}
+.pass-tag {
+  display: inline-block;
+  margin-left: 0.45rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  vertical-align: 0.12em;
+  color: var(--sick);
+  background: color-mix(in srgb, var(--sick) 14%, var(--surface));
+}
+.kind-toggle .segmented {
+  display: flex;
+  width: 100%;
+}
+.kind-toggle .segmented button {
+  flex: 1;
 }
