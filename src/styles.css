@@ -1275,7 +1275,7 @@ legend {
   background: var(--ink);
 }
 /* The next month's first week (and the previous month's last days) on phones */
-.cal-day.adjacent:not(.trip):not(.picked):not(.short):not(.past):not(.off) {
+.cal-day.adjacent:not(.day-off):not(.past):not(.weekend) {
   background: color-mix(in srgb, var(--ink) 3%, var(--surface));
 }
 .cal-num small {
@@ -1347,5 +1347,141 @@ legend {
 @media (min-width: 960px) {
   .toast {
     bottom: 7rem;
+  }
+}
+
+/* Plan v3: tap a day, an umbrella pops in; paydays carry the balance */
+.cal-day {
+  justify-content: flex-start;
+  gap: 2px;
+}
+.cal-day.weekend {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.cal-day.day-off {
+  background: var(--amber-wash);
+  border-color: var(--amber);
+}
+.cal-day.day-off.below {
+  background: var(--red-wash);
+  border-color: var(--red);
+}
+.off-mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 8px;
+  pointer-events: none;
+}
+.umbrella {
+  width: 24px;
+  height: 24px;
+}
+.umbrella .canopy {
+  fill: var(--amber);
+}
+.umbrella .pole {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.cal-day.below .umbrella .canopy {
+  fill: var(--red);
+}
+.cal-day.day-off.half .umbrella {
+  width: 18px;
+  height: 18px;
+  opacity: 0.85;
+}
+.half-label {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--amber-ink);
+}
+.cal-day.below .half-label {
+  color: var(--red);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .off-mark.pop .umbrella {
+    animation: umbrella-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: 50% 80%;
+  }
+}
+@keyframes umbrella-pop {
+  0% {
+    transform: scale(0.2) rotate(-25deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+.payday {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--green) 14%, var(--surface));
+  color: var(--green);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.payday.neg {
+  background: var(--red-wash);
+  color: var(--red);
+}
+.cal-day.day-off .payday {
+  left: auto;
+  right: 3px;
+  top: 3px;
+  bottom: auto;
+  padding: 0 3px;
+}
+.cal-key .payday.sample {
+  position: static;
+  display: inline-block;
+  padding: 0 0.4rem;
+}
+.key-umbrella .umbrella {
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+}
+.cal-key > span {
+  width: 100%;
+}
+.plan-bar p {
+  margin: 0;
+}
+.plan-bar.problem strong {
+  color: var(--red);
+}
+
+@media (min-width: 960px) {
+  .off-mark {
+    padding-top: 16px;
+  }
+  .umbrella {
+    width: 20px;
+    height: 20px;
+  }
+  .cal-day.day-off.half .umbrella {
+    width: 16px;
+    height: 16px;
   }
 }

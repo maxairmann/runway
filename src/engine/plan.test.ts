@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupPicks, monthGrid, picksAsTrips } from './plan';
+import { cycleDay, daysOffFromTrips, groupPicks, monthGrid, picksAsTrips, tripsFromDaysOff } from './plan';
 import { tripCost } from './forecast';
 import type { Member } from './types';
 
@@ -35,5 +35,33 @@ describe('planning picks', () => {
     expect(g[0]).toBe('2026-11-01'); // Nov 1, 2026 is a Sunday
     expect(g.length % 7).toBe(0);
     expect(g.at(-1)).toBe('2026-12-05');
+  });
+});
+
+describe('days off as the source of truth', () => {
+  let n = 0;
+  const id = () => `t${n++}`;
+
+  it('round-trips trips → days → trips, keeping half days and skipping weekends', () => {
+    const trips = tripsFromDaysOff({ '2026-11-13': 1, '2026-11-16': 0.5, '2026-11-18': 1 }, me, id);
+    expect(trips.map((t) => [t.start, t.end])).toEqual([
+      ['2026-11-13', '2026-11-16'],
+      ['2026-11-18', '2026-11-18'],
+    ]);
+    expect(daysOffFromTrips(trips, me)).toEqual({ '2026-11-13': 1, '2026-11-16': 0.5, '2026-11-18': 1 });
+  });
+
+  it('cycles a tapped day: full, half, cleared', () => {
+    let d = cycleDay({}, '2026-11-18');
+    expect(d['2026-11-18']).toBe(1);
+    d = cycleDay(d, '2026-11-18');
+    expect(d['2026-11-18']).toBe(0.5);
+    d = cycleDay(d, '2026-11-18');
+    expect(d['2026-11-18']).toBeUndefined();
+  });
+
+  it('turns a trip of partial hours into half or full days', () => {
+    const t = { id: 'x', title: '', start: '2026-11-16', end: '2026-11-17', memberIds: ['me'], hoursPerDay: 3, status: 'confirmed' as const };
+    expect(daysOffFromTrips([t], me)).toEqual({ '2026-11-16': 0.5, '2026-11-17': 0.5 });
   });
 });

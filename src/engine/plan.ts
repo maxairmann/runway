@@ -81,6 +81,43 @@ export function picksAsTrips(picks: Picks, members: Member[], memberIds: string[
   return groupPicks(picks, going).map((g, i) => groupToTrip(g, memberIds, `__pick_${i}__`, 'Picked days', 'tentative'));
 }
 
+/**
+ * Every workday off in a set of trips: 1 = full day, 0.5 = half day.
+ * Partial-hour days round to the nearest half day (at least a half).
+ */
+export function daysOffFromTrips(trips: Trip[], member: Member): Picks {
+  const out: Picks = {};
+  const years = trips.flatMap((t) => [partsOf(toDay(t.start)).y, partsOf(toDay(t.end)).y]);
+  if (years.length === 0) return out;
+  const hol = holidaySets([member], Math.min(...years), Math.max(...years)).get(member.id);
+  for (const t of trips) {
+    if (!t.memberIds.includes(member.id)) continue;
+    const half = new Set(t.halfDays ?? []);
+    const base =
+      t.hoursPerDay !== null ? Math.max(0.5, Math.round((t.hoursPerDay / member.policy.hoursPerDay) * 2) / 2) : (t.dayFraction ?? 1);
+    for (let n = toDay(t.start); n <= toDay(t.end); n++) {
+      if (!isWorkday(member, n, hol)) continue;
+      const d = fromDay(n);
+      out[d] = half.has(d) ? 0.5 : Math.min(1, base);
+    }
+  }
+  return out;
+}
+
+/** Days off back into trips: back-to-back days (across weekends and holidays) become one trip. */
+export function tripsFromDaysOff(days: Picks, member: Member, makeId: () => string): Trip[] {
+  return groupPicks(days, [member]).map((g) => groupToTrip(g, [member.id], makeId(), 'Time off', 'confirmed'));
+}
+
+/** Tap a day: off (full) → half day → back to working. */
+export function cycleDay(days: Picks, d: ISODate): Picks {
+  const next = { ...days };
+  if (!days[d]) next[d] = 1;
+  else if (days[d] === 1) next[d] = 0.5;
+  else delete next[d];
+  return next;
+}
+
 /** Calendar grid for a month: whole weeks, Sunday first. */
 export function monthGrid(year: number, month: number): ISODate[] {
   const first = toDay(`${year}-${String(month).padStart(2, '0')}-01`);

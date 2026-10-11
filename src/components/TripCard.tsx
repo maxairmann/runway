@@ -20,8 +20,7 @@ export function TripCard({ trip, household, onOpen }: { trip: Trip; household: H
   return (
     <button type="button" className="pass solo" onClick={onOpen}>
       <span className="pass-main">
-        <span className="pass-title">{trip.title || 'Untitled trip'}</span>
-        <span className="pass-dates">{formatRange(trip.start, trip.end)}</span>
+        <span className="pass-title">{formatRange(trip.start, trip.end)}</span>
         <span className="pass-meta">
           {span === 1 ? '1 calendar day' : `${span} calendar days`}
           {part ? `, ${part.toLowerCase()}` : ''}

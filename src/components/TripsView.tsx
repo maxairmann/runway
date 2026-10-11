@@ -22,9 +22,9 @@ export function TripsView({
   return (
     <div className="trips">
       <div className="section-head">
-        <h1>Trips</h1>
+        <h1>Time off</h1>
         <button type="button" className="primary" onClick={() => onPlanTrip()}>
-          Plan a trip
+          Add time off
         </button>
       </div>
 
@@ -33,7 +33,7 @@ export function TripsView({
       <section>
         <h2>Upcoming</h2>
         {upcoming.length === 0 ? (
-          <p className="empty-line">Nothing planned. Use “Plan a trip” or find the earliest dates above.</p>
+          <p className="empty-line">Nothing planned. Tap days on the Plan calendar, or find the earliest dates above.</p>
         ) : (
           <div className="passes">
             {upcoming.map((t) => (
@@ -98,7 +98,7 @@ function EarliestFinder({
         <div className="finder-result">
           <p>
             <strong>{formatRange(result.start, result.end)}</strong> is the first stretch you can take without going below zero, counting
-            every trip already planned.
+            the time off already planned.
           </p>
           <button type="button" onClick={() => onUse({ start: result.start, end: result.end })}>
             Plan these dates
@@ -106,7 +106,7 @@ function EarliestFinder({
         </div>
       ) : result.reason === 'already-below' ? (
         <p className="warn-line">
-          Your saved trips already put you below zero on {formatDate(result.date, 'medium')}. Move or shorten one of those first.
+          Your planned time off already puts you below zero on {formatDate(result.date, 'medium')}. Move or shorten one of those first.
         </p>
       ) : (
         <p className="warn-line">No dates in the next two years work. Try fewer days.</p>

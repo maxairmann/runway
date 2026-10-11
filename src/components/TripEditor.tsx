@@ -3,9 +3,9 @@ import { addDays, formatDate, formatRange, toDay, weekdayOf, type ISODate } from
 import { findEarliest, tripImpact } from '../engine/forecast';
 import type { Household, Trip } from '../engine/types';
 import { amount } from '../format';
-import { Field, NumberInput, Segmented, Sheet } from './ui';
+import { Field, Segmented, Sheet } from './ui';
 
-type DayKind = 'full' | 'half' | 'hours';
+type DayKind = 'full' | 'half';
 
 export function TripEditor({
   household,
@@ -28,7 +28,7 @@ export function TripEditor({
   const [draft, setDraft] = useState<Trip>(trip);
   const set = (patch: Partial<Trip>) => setDraft((d) => ({ ...d, ...patch }));
   const valid = draft.memberIds.length > 0 && draft.end >= draft.start;
-  const dayKind: DayKind = draft.hoursPerDay !== null ? 'hours' : draft.dayFraction === 0.5 ? 'half' : 'full';
+  const dayKind: DayKind = draft.dayFraction === 0.5 ? 'half' : 'full';
 
   const until = useMemo(() => {
     const a = addDays(today, 540);
@@ -61,29 +61,24 @@ export function TripEditor({
     <Sheet
       open
       onClose={onClose}
-      title={isNew ? 'Plan a trip' : 'Edit trip'}
+      title={isNew ? 'Add time off' : 'Edit time off'}
       footer={
         <>
           {!isNew ? (
             <button type="button" className="danger" onClick={() => onDelete(draft.id)}>
-              Delete trip
+              Delete
             </button>
           ) : null}
           <span className="spacer" />
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="primary" disabled={!valid} onClick={() => onSave({ ...draft, title: draft.title.trim() || 'Time off' })}>
-            {isNew ? 'Add trip' : 'Save trip'}
+          <button type="button" className="primary" disabled={!valid} onClick={() => onSave({ ...draft, title: 'Time off' })}>
+            {isNew ? 'Add' : 'Save'}
           </button>
         </>
       }
     >
-      <Field label="What is it?">
-        {(id) => (
-          <input id={id} value={draft.title} placeholder="Beach week, wedding, dentist…" onChange={(e) => set({ title: e.target.value })} />
-        )}
-      </Field>
 
       <div className="row">
         <Field label="First day off">
@@ -115,15 +110,12 @@ export function TripEditor({
               set(
                 v === 'full'
                   ? { hoursPerDay: null, dayFraction: 1, halfDays: undefined }
-                  : v === 'half'
-                    ? { hoursPerDay: null, dayFraction: 0.5, halfDays: undefined }
-                    : { hoursPerDay: 2, dayFraction: 1, halfDays: undefined },
+                  : { hoursPerDay: null, dayFraction: 0.5, halfDays: undefined },
               )
             }
             options={[
-              { value: 'full', label: 'Full day' },
-              { value: 'half', label: 'Half day' },
-              { value: 'hours', label: 'Hours' },
+              { value: 'full', label: 'Full days' },
+              { value: 'half', label: 'Half days' },
             ]}
           />
         </div>
@@ -133,23 +125,18 @@ export function TripEditor({
             {halfDays.map((d) => formatDate(d, 'short')).join(', ')}. Choosing an option above applies it to every day.
           </p>
         ) : null}
-        {dayKind === 'hours' ? (
-          <Field label="Hours off each day">
-            {(id) => <NumberInput id={id} value={draft.hoursPerDay} step={0.5} min={0.5} suffix="h" onChange={(v) => set({ hoursPerDay: v ?? 0 })} />}
-          </Field>
-        ) : null}
       </div>
 
       {valid ? (
         <section className={`impact ${problem ? 'problem' : ''}`} aria-live="polite">
-          <h3>{problem ? "This trip doesn't fit yet" : 'This trip fits'}</h3>
+          <h3>{problem ? "This doesn't fit yet" : 'This fits'}</h3>
           {impact.map((i) => {
             const pd = household.members[0].policy.hoursPerDay;
             const left = i.after.balanceOn(draft.end);
             const newLow = i.after.low.balance < i.before.low.balance - 0.05 && Math.abs(i.after.low.balance - left) > 0.05;
             return (
               <p key={i.memberId}>
-                You use {amount(i.cost, pd, units)}, leaving {amount(left, pd, units)} after the trip.
+                You use {amount(i.cost, pd, units)}, leaving {amount(left, pd, units)} after.
                 {newLow ? ` New lowest point: ${amount(i.after.low.balance, pd, units)} on ${formatDate(i.after.low.date, 'short')}.` : ''}
                 {i.overdraws ? <em className="bad"> Puts you below zero on {formatDate(i.after.firstOverdrawn!, 'medium')}.</em> : null}
               </p>

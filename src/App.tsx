@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import { addDays, todayISO, type ISODate } from './engine/dates';
-import type { Picks } from './engine/plan';
+import { addDays, formatRange, todayISO, type ISODate } from './engine/dates';
 import type { Trip } from './engine/types';
 import { newId } from './data/ids';
+import { daysOffFromTrips, tripsFromDaysOff } from './engine/plan';
 import { useStore } from './data/store';
 import { CloudGate, Welcome } from './components/Entry';
 import { Onboarding } from './components/Onboarding';
@@ -16,7 +16,7 @@ type Tab = 'plan' | 'trips' | 'rules' | 'settings';
 
 const TABS: { id: Tab; label: string; icon: ReactElement }[] = [
   { id: 'plan', label: 'Plan', icon: <path d="M5 5h14v15H5zM5 9h14M9 3v4M15 3v4M9 13h2M13 13h2M9 16h2" /> },
-  { id: 'trips', label: 'Trips', icon: <path d="M4 7h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4zM14 7v12" /> },
+  { id: 'trips', label: 'Time off', icon: <path d="M4 7h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4zM14 7v12" /> },
   { id: 'rules', label: 'My rules', icon: <path d="M6 4h12v16H6zM9 8h6M9 12h6M9 16h3" /> },
   { id: 'settings', label: 'Settings', icon: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" /> },
 ];
@@ -32,8 +32,6 @@ export default function App() {
   const { mode, household, update, choose, startLocal, cloud } = store;
   const [tab, setTab] = useState<Tab>('plan');
   const [editor, setEditor] = useState<{ trip: Trip; isNew: boolean } | null>(null);
-  // Picked-but-unsaved days live here so they survive switching tabs.
-  const [picks, setPicks] = useState<Picks>({});
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today: ISODate = useMemo(() => todayISO(), []);
@@ -119,26 +117,7 @@ export default function App() {
 
       <main className="content">
         {tab === 'plan' ? (
-          <PlanView
-            household={household}
-            today={today}
-            picks={picks}
-            setPicks={setPicks}
-            onOpenTrip={openTrip}
-            onClearPicks={() => {
-              const before = picks;
-              const n = Object.values(before).reduce((s, v) => s + v, 0);
-              setPicks({});
-              showToast(`Cleared ${n === 1 ? '1 day' : `${n} days`}.`, () => setPicks(before));
-            }}
-            onSaveTrips={(trips) => {
-              update((h) => ({ ...h, trips: [...h.trips, ...trips] }));
-              setPicks({});
-              showToast(trips.length === 1 ? `Saved ${trips[0].title}.` : `Saved ${trips.length} trips.`, () =>
-                update((h) => ({ ...h, trips: h.trips.filter((x) => !trips.some((t) => t.id === x.id)) })),
-              );
-            }}
-          />
+          <PlanView household={household} today={today} update={update} />
         ) : null}
         {tab === 'trips' ? <TripsView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={planTrip} /> : null}
         {tab === 'rules' ? <RulesView household={household} update={update} /> : null}
@@ -157,10 +136,14 @@ export default function App() {
             const gone = household.trips.find((t) => t.id === id);
             update((h) => ({ ...h, trips: h.trips.filter((t) => t.id !== id) }));
             setEditor(null);
-            if (gone) showToast(`Deleted ${gone.title}.`, () => update((h) => ({ ...h, trips: [...h.trips, gone] })));
+            if (gone) showToast(`Deleted ${formatRange(gone.start, gone.end)}.`, () => update((h) => ({ ...h, trips: [...h.trips, gone] })));
           }}
           onSave={(t) => {
-            update((h) => ({ ...h, trips: h.trips.some((x) => x.id === t.id) ? h.trips.map((x) => (x.id === t.id ? t : x)) : [...h.trips, t] }));
+            update((h) => {
+              const others = h.trips.filter((x) => x.id !== t.id);
+              const days = { ...daysOffFromTrips(others, me), ...daysOffFromTrips([t], me) };
+              return { ...h, trips: tripsFromDaysOff(days, me, () => newId('trip')) };
+            });
             setEditor(null);
           }}
         />
