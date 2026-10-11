@@ -22,7 +22,7 @@ export function TripsView({
   return (
     <div className="trips">
       <div className="section-head">
-        <h1>Time off</h1>
+        <h1>All time off</h1>
         <button type="button" className="primary" onClick={() => onPlanTrip()}>
           Add time off
         </button>

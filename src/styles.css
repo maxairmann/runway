@@ -1625,3 +1625,141 @@ legend {
 .settings > h1 + .hint {
   margin-top: 0.4rem;
 }
+
+/* Partial days fill the square from the bottom: half fills half, 2 of 8 hours fills a quarter. */
+.cal-day.day-off.half,
+.cal-day.day-off.custom {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--focus) 26%, var(--surface)) var(--fill, 50%),
+    var(--surface) var(--fill, 50%)
+  );
+  border-color: color-mix(in srgb, var(--focus) 60%, var(--surface));
+}
+.cal-day.day-off.half.below,
+.cal-day.day-off.custom.below {
+  background: linear-gradient(to top, color-mix(in srgb, var(--red) 22%, var(--surface)) var(--fill, 50%), var(--surface) var(--fill, 50%));
+  border-color: var(--red);
+}
+.cal-day.day-off.half .off-mark,
+.cal-day.day-off.custom .off-mark {
+  align-items: flex-end;
+  padding: 0 0 4px;
+  gap: 2px;
+}
+.cal-day.day-off.half .icon-car,
+.cal-day.day-off.custom .icon-car {
+  width: 18px;
+  height: 18px;
+}
+.part-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 18px;
+  color: var(--focus);
+}
+.cal-day.below .part-label {
+  color: var(--red);
+}
+.hours-label,
+.half-label {
+  display: none;
+}
+
+/* Plan header with a quiet way into the list */
+.plan-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.link.quiet {
+  color: var(--ink-3);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Bottom bar: a raised Calendar button in the middle; List and Settings stay quiet */
+.tabs {
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: end;
+  overflow: visible;
+}
+.tabs button.side {
+  color: var(--ink-3);
+}
+.tabs button.side span {
+  font-size: 0.7rem;
+}
+.tabs button.list-tab svg {
+  width: 20px;
+  height: 20px;
+}
+.tabs button.home {
+  position: relative;
+  overflow: visible;
+  color: var(--ink-2);
+  font-weight: 700;
+}
+.home-disc {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-top: -26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--page);
+  box-shadow: 0 0 0 5px var(--page), 0 6px 16px rgb(10 18 30 / 0.22);
+}
+.tabs button.home .home-disc svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.9;
+}
+.tabs button.home.on {
+  color: var(--ink);
+}
+.tabs button.home:not(.on) .home-disc {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 0 0 5px var(--page), 0 0 0 6.5px var(--line), 0 6px 16px rgb(10 18 30 / 0.12);
+}
+@media (min-width: 960px) {
+  .tabs {
+    display: flex;
+    align-items: center;
+  }
+  .tabs button.list-tab {
+    display: none;
+  }
+  .tabs button.home {
+    order: -1;
+  }
+  .home-disc {
+    width: auto;
+    height: auto;
+    margin: 0;
+    background: none;
+    color: inherit;
+    box-shadow: none;
+    display: inline-flex;
+  }
+  .tabs button.home .home-disc svg,
+  .tabs button.home:not(.on) .home-disc svg {
+    width: 20px;
+    height: 20px;
+  }
+  .tabs button.home:not(.on) .home-disc,
+  .tabs button.home.on .home-disc {
+    background: none;
+    box-shadow: none;
+    color: inherit;
+  }
+}
+@media (min-width: 960px) {
+  .tabs button.side span,
+  .tabs button.home span {
+    font-size: 0.95rem;
+  }
+}

@@ -71,10 +71,12 @@ export function PlanView({
   household,
   today,
   update,
+  onShowList,
 }: {
   household: Household;
   today: ISODate;
   update: (fn: (h: Household) => Household) => void;
+  onShowList: () => void;
 }) {
   const units = household.units ?? 'hours';
   const me = household.members[0];
@@ -181,7 +183,12 @@ export function PlanView({
   return (
     <div className="plan">
       <header className="plan-head">
-        <h1>Plan days off</h1>
+        <div className="plan-title">
+          <h1>Plan days off</h1>
+          <button type="button" className="link quiet" onClick={onShowList}>
+            List view
+          </button>
+        </div>
         <p className="plan-banked">You have {amount(forecast.balanceOn(today), perDay, units)} banked today.</p>
         {loss && loss.hours >= 0.5 ? (
           <p className="plan-loss">
@@ -280,6 +287,7 @@ export function PlanView({
                       aria-label={label}
                       aria-pressed={tappable ? !!off : undefined}
                       aria-haspopup="dialog"
+                      style={kind && kind !== 'full' ? ({ ['--fill' as string]: `${Math.round((off as number) * 100)}%` } as React.CSSProperties) : undefined}
                       onClick={() => tap(d)}
                       onPointerDown={(e) => startHold(e, d)}
                       onPointerMove={moveHold}
@@ -301,7 +309,8 @@ export function PlanView({
                       {kind ? (
                         <span className={`off-mark ${popped === d ? 'pop' : ''}`} onAnimationEnd={() => setPopped(null)}>
                           {kind === 'full' ? <BeachUmbrella /> : <Car />}
-                          {kind === 'custom' ? <span className="hours-label">{offHours}h</span> : null}
+                          {kind === 'half' ? <span className="part-label">½</span> : null}
+                          {kind === 'custom' ? <span className="part-label">{offHours}h</span> : null}
                         </span>
                       ) : null}
                       {payday !== undefined ? <span className={`payday ${payday < floor - 1e-9 ? 'neg' : ''}`}>{short(payday)}</span> : null}

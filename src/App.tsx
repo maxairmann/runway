@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, formatRange, todayISO, type ISODate } from './engine/dates';
 import type { Trip } from './engine/types';
 import { newId } from './data/ids';
@@ -13,11 +13,6 @@ import { TripsView } from './components/TripsView';
 
 type Tab = 'plan' | 'trips' | 'settings';
 
-const TABS: { id: Tab; label: string; icon: ReactElement }[] = [
-  { id: 'plan', label: 'Plan', icon: <path d="M5 5h14v15H5zM5 9h14M9 3v4M15 3v4M9 13h2M13 13h2M9 16h2" /> },
-  { id: 'trips', label: 'Time off', icon: <path d="M4 7h16v4a2 2 0 000 4v4H4v-4a2 2 0 000-4zM14 7v12" /> },
-  { id: 'settings', label: 'Settings', icon: <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" /> },
-];
 
 interface Toast {
   id: number;
@@ -103,19 +98,50 @@ export default function App() {
       </header>
 
       <nav className="tabs" aria-label="Sections">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>
+        <button
+          type="button"
+          className={`side list-tab ${tab === 'trips' ? 'on' : ''}`}
+          aria-current={tab === 'trips' ? 'page' : undefined}
+          aria-label="Time off as a list"
+          onClick={() => setTab('trips')}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01" />
+          </svg>
+          <span>List</span>
+        </button>
+        <button
+          type="button"
+          className={`home ${tab === 'plan' ? 'on' : ''}`}
+          aria-current={tab === 'plan' ? 'page' : undefined}
+          aria-label="Calendar"
+          onClick={() => setTab('plan')}
+        >
+          <span className="home-disc">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              {t.icon}
+              <path d="M5 5h14v15H5zM5 9h14M9 3v4M15 3v4" />
+              <path d="M8.5 13h2M13.5 13h2M8.5 16.5h2" />
             </svg>
-            <span>{t.label}</span>
-          </button>
-        ))}
+          </span>
+          <span>Calendar</span>
+        </button>
+        <button
+          type="button"
+          className={`side ${tab === 'settings' ? 'on' : ''}`}
+          aria-current={tab === 'settings' ? 'page' : undefined}
+          aria-label="Settings"
+          onClick={() => setTab('settings')}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" />
+          </svg>
+          <span>Settings</span>
+        </button>
       </nav>
 
       <main className="content">
         {tab === 'plan' ? (
-          <PlanView household={household} today={today} update={update} />
+          <PlanView household={household} today={today} update={update} onShowList={() => setTab('trips')} />
         ) : null}
         {tab === 'trips' ? <TripsView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={planTrip} /> : null}
         {tab === 'settings' ? <SettingsView store={store} /> : null}
