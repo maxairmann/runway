@@ -63,7 +63,10 @@ export default async function handler(req, res) {
   const admin = createClient(url, serviceKey, noSession);
   const { data: who, error: whoError } = await admin.auth.getUser(token);
   if (whoError || !who?.user) return res.status(401).json({ error: 'Your sign-in expired. Sign in again.' });
-  if ((who.user.email || '').toLowerCase() !== adminEmail) {
+  // Only the confirmed, non-anonymous account with ADMIN_EMAIL. Emails are unique in Supabase,
+  // and sign-ups are off, so no one else can claim that address.
+  const isAdmin = (who.user.email || '').toLowerCase() === adminEmail && !who.user.is_anonymous && Boolean(who.user.email_confirmed_at);
+  if (!isAdmin) {
     return res.status(403).json({ error: 'Only the admin can manage invites.' });
   }
 
