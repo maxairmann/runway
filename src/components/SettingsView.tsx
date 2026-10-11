@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { formatDate } from '../engine/dates';
 import type { Household } from '../engine/types';
 import type { Store } from '../data/store';
+import { Invites } from './Invites';
 import { Segmented } from './ui';
 import { PtoRules } from './RulesView';
 
@@ -141,6 +142,8 @@ export function SettingsView({ store }: { store: Store }) {
           />
         </div>
       </section>
+
+      {mode === 'cloud' && cloud.phase === 'ready' ? <Invites /> : null}
 
       {mode !== 'demo' ? (
         <section>

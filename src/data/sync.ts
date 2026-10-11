@@ -45,7 +45,11 @@ export async function onAuthChange(cb: (event: string, session: Session | null) 
 export async function sendMagicLink(email: string): Promise<void> {
   const sb = await client();
   const redirect = window.location.origin + window.location.pathname;
-  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
+  // Invite-only: never create an account here. The admin invites people (api/invite.js).
+  const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect, shouldCreateUser: false } });
+  if (error && /sign ?ups? not allowed|otp_disabled|user not found/i.test(`${error.message} ${(error as { code?: string }).code ?? ''}`)) {
+    throw new Error('That email hasn’t been invited yet. Ask the person who shared Runway with you for an invite.');
+  }
   fail(error);
 }
 
@@ -58,6 +62,35 @@ export async function verifyCode(email: string, code: string): Promise<void> {
   const { error } = await sb.auth.verifyOtp({ email, token: code, type: 'email' });
   fail(error);
 }
+
+export interface Invitee {
+  email: string;
+  invitedAt: string;
+  lastSignIn: string | null;
+}
+
+/** Calls the admin-only invite endpoint. Throws with `status` set (403 = not the admin, 404/501 = not set up). */
+async function inviteApi<T>(method: 'GET' | 'POST' | 'DELETE', email?: string): Promise<T> {
+  const sb = await client();
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw Object.assign(new Error('Sign in first.'), { status: 401 });
+  const query = method === 'DELETE' && email ? `?email=${encodeURIComponent(email)}` : '';
+  const res = await fetch(`/api/invite${query}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: method === 'POST' ? JSON.stringify({ email }) : undefined,
+  });
+  const body = (await res.json().catch(() => null)) as (T & { error?: string }) | null;
+  if (!res.ok || body === null) {
+    throw Object.assign(new Error(body?.error ?? 'Invites aren’t available here.'), { status: body === null ? 404 : res.status });
+  }
+  return body;
+}
+
+export const listInvitees = () => inviteApi<{ users: Invitee[] }>('GET').then((b) => b.users);
+export const sendInvite = (email: string) => inviteApi<{ ok: true; resent: boolean }>('POST', email);
+export const removeInvitee = (email: string) => inviteApi<{ ok: true }>('DELETE', email);
 
 export async function signOut(): Promise<void> {
   const sb = await client();

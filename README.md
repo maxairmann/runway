@@ -68,13 +68,22 @@ npm run dev
 
 Open the printed URL. To try it on your phone on the same Wi-Fi, run `npm run dev -- --host` and open the network URL.
 
-## Turn on sync (optional)
+## Turn on sync (optional, invite-only)
+
+Synced plans are invite-only: sign-ups are off, and one admin invites people by email from Settings. Each person gets their own private plan.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run `supabase/schema.sql`.
-3. Under Authentication → URL Configuration, set the Site URL to your deployed URL (and add `http://localhost:5173` for local testing).
-4. Under Authentication → Emails → Magic Link, add the code to the email body, e.g. `<p>Your code: <strong>{{ .Token }}</strong></p>`. On iPhone, an app saved to the home screen doesn't share a sign-in with Safari, so people sign in by typing the code rather than tapping the link.
-5. Copy `.env.example` to `.env.local` and fill in the project URL and anon key from Project Settings → API.
+3. **Email.** Supabase's built-in email only reaches members of your Supabase team, so add your own SMTP under Authentication → Emails → SMTP Settings. For a personal app, Gmail works: host `smtp.gmail.com`, port `465`, your Gmail address as username and sender, and a [Google app password](https://myaccount.google.com/apppasswords) as the password.
+4. **Email template.** Under Authentication → Emails → Magic Link, paste `supabase/email-sign-in.html` as the body. It carries a 6-digit code: on iPhone, an app saved to the home screen doesn't share a sign-in with Safari, so people sign in by typing the code.
+5. **Invite-only.** Under Authentication → Users, add yourself (Add user → Create new user, auto-confirm). Then turn off "Allow new users to sign up" (Authentication → Sign In / Providers).
+6. Under Authentication → URL Configuration, set the Site URL to your deployed URL.
+7. Set the environment variables (in Vercel, or `.env.local` for the app):
+   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` from Project Settings → API.
+   - `SUPABASE_SERVICE_ROLE_KEY` (server only, for `api/invite.js`; never prefix it with `VITE_`).
+   - `ADMIN_EMAIL`: the email allowed to send invites.
+
+Invites go through a Vercel serverless function (`api/invite.js`). It checks the caller's sign-in against `ADMIN_EMAIL`, creates the account, and sends the sign-in email. `npm run dev` doesn't run it, so the Invites section only appears on Vercel (or under `vercel dev`).
 
 ## Deploy
 
@@ -87,6 +96,7 @@ For a public demo link, deploy a second Vercel project from the same repo with `
 ## Project layout
 
 ```
+api/            invite endpoint (Vercel serverless function)
 src/engine/     forecast engine, planning (picks to trips), holidays, date math, tests
 src/data/       app state, persistence, Supabase sync, demo data
 src/components/ screens: plan calendar, trips, trip editor, rules, settings
