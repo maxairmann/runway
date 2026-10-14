@@ -7,7 +7,7 @@
 
 import { partsOf, daysInMonth, fromDay, isoOf, toDay, weekdayOf, type ISODate } from './dates';
 import { memberHolidays } from './holidays';
-import type { Household, Member, Policy, Trip } from './types';
+import { tripKind, type DayKind, type Household, type Member, type Policy, type Trip } from './types';
 
 export type EventKind = 'accrual' | 'use' | 'capped' | 'forfeit' | 'checkpoint';
 
@@ -92,9 +92,12 @@ export function usageFor(member: Member, trips: Trip[], untilDay: number): Map<n
   const work = new Set(member.policy.workDays);
   const usage = new Map<number, { hours: number; tripId: string }[]>();
   const sickSeparate = !!member.sick?.separate;
+  const personalOn = (member.personal?.daysPerYear ?? 0) > 0;
   for (const trip of trips) {
     if (!trip.memberIds.includes(member.id)) continue;
-    if (trip.sick && sickSeparate) continue; // comes out of the sick balance instead
+    // These come out of their own balances instead.
+    const k = tripKind(trip);
+    if ((k === 'sick' && sickSeparate) || (k === 'personal' && personalOn)) continue;
     const hours = trip.hoursPerDay ?? member.policy.hoursPerDay * (trip.dayFraction ?? 1);
     const half = new Set((trip.halfDays ?? []).map(toDay));
     for (let n = toDay(trip.start); n <= toDay(trip.end); n++) {
@@ -395,6 +398,7 @@ export function sickMember(member: Member): Member | null {
       startBalance: s.balance,
       checkpoints: [],
       sick: undefined,
+      personal: undefined,
       policy: {
         ...member.policy,
         method: annual ? 'annual' : member.policy.method,
@@ -415,5 +419,50 @@ export function sickMember(member: Member): Member | null {
 /** Forecast of the separate sick balance, or null when sick days come out of PTO. */
 export function forecastSick(member: Member, trips: Trip[], opts: ForecastOptions): MemberForecast | null {
   const sm = sickMember(member);
-  return sm ? forecastMember(sm, trips.filter((t) => t.sick), opts) : null;
+  return sm ? forecastMember(sm, trips.filter((t) => tripKind(t) === 'sick'), opts) : null;
+}
+
+const personalStandIns = new WeakMap<Member, Member>();
+
+/** Personal days as a member of their own: granted yearly, unused ones lost on the reset date. Null when there are none. */
+export function personalMember(member: Member): Member | null {
+  const p = member.personal;
+  if (!p || p.daysPerYear <= 0) return null;
+  let pm = personalStandIns.get(member);
+  if (!pm) {
+    const [rm, rd] = p.resetDate.split('-').map(Number);
+    pm = {
+      ...member,
+      startDate: p.asOf,
+      startBalance: p.balance,
+      checkpoints: [],
+      sick: undefined,
+      personal: undefined,
+      policy: {
+        ...member.policy,
+        method: 'annual',
+        anchor: isoOf(partsOf(toDay(p.asOf)).y - 1, rm, rd),
+        rate: p.daysPerYear * member.policy.hoursPerDay,
+        rateChanges: [],
+        maxBalance: null,
+        carryoverCap: 0,
+        resetDate: p.resetDate,
+        allowNegative: 0,
+      },
+    };
+    personalStandIns.set(member, pm);
+  }
+  return pm;
+}
+
+export function forecastPersonal(member: Member, trips: Trip[], opts: ForecastOptions): MemberForecast | null {
+  const pm = personalMember(member);
+  return pm ? forecastMember(pm, trips.filter((t) => tripKind(t) === 'personal'), opts) : null;
+}
+
+/** The stand-in whose balance a kind of day comes out of (the member itself for PTO, or when that kind isn't tracked separately). */
+export function memberFor(member: Member, kind: DayKind): Member {
+  if (kind === 'sick') return sickMember(member) ?? member;
+  if (kind === 'personal') return personalMember(member) ?? member;
+  return member;
 }

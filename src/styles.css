@@ -1946,9 +1946,6 @@ input[type='checkbox'] {
   color: var(--ink-2);
   font-weight: 600;
 }
-.cal-holiday.unpaid.jewish {
-  color: var(--accent-ink);
-}
 .check.holiday-paid {
   align-items: flex-start;
   margin-bottom: 0.75rem;
@@ -2308,4 +2305,74 @@ input[type='checkbox'] {
     transform: none;
     opacity: 1;
   }
+}
+
+/* Emoji day icons (sick, personal) */
+.day-emoji {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+.cal-day.day-off.half .day-emoji,
+.cal-day.day-off.custom .day-emoji {
+  font-size: 1.05rem;
+}
+.hours-choice .day-emoji {
+  font-size: 1.5rem;
+}
+.cal-day.day-off:has(.cal-holiday) .day-emoji {
+  font-size: 0.95rem;
+}
+.cal-day.day-off.personal {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--surface));
+}
+.cal-day.day-off.personal.half,
+.cal-day.day-off.personal.custom {
+  background: linear-gradient(to top, color-mix(in srgb, var(--accent) 22%, var(--surface)) var(--fill, 50%), var(--surface) var(--fill, 50%));
+}
+.cal-day.day-off.personal.below {
+  background: var(--red-wash);
+  border-color: var(--red);
+}
+.pass-tag.personal {
+  color: var(--accent-ink);
+  background: var(--accent-wash);
+}
+
+/* One list of holidays: hide, show, or paid */
+.holiday-choices li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.holiday-choice-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-weight: 600;
+}
+.holiday-choice-name small {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.holiday-choices .segmented {
+  flex-shrink: 0;
+}
+.holiday-choices .segmented button {
+  min-height: 34px;
+  padding: 0 0.6rem;
+  font-size: 0.85rem;
+}
+.holiday-choices li {
+  flex-wrap: nowrap;
+}
+.holiday-choice-name {
+  flex: 1 1 auto;
+}
+.holiday-choices .segmented {
+  width: auto;
+  flex: 0 0 auto;
 }

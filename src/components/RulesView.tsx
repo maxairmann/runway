@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { formatDate, todayISO, type ISODate } from '../engine/dates';
-import { JEWISH_HOLIDAY_NAMES, US_HOLIDAY_NAMES, paidNames } from '../engine/holidays';
+import { holidayChoices, paidNames, shownNames } from '../engine/holidays';
 import type { AccrualMethod, Household, Member, SickPolicy } from '../engine/types';
 import { EVENTS_PER_YEAR, METHOD_LABELS } from '../data/defaults';
 import { hours, round2 } from '../format';
 import { Field, NumberInput, Segmented } from './ui';
+
+type HolidayState = 'hidden' | 'shown' | 'paid';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -57,15 +59,25 @@ export function PtoRules({
   const setSick = (patch: Partial<SickPolicy>) => setM({ ...m, sick: { ...sick, ...patch } });
   const [grantMonth, grantDay] = sick.grantDate.split('-').map(Number);
   const paid = paidNames(m);
-  const showUs = m.usHolidays ?? true;
-  const showJewish = !!m.jewishHolidays;
-  const paidChoices = [...(showUs ? US_HOLIDAY_NAMES : []), ...(showJewish ? JEWISH_HOLIDAY_NAMES : [])];
-  const togglePaid = (name: string) => {
-    const next = new Set(paid);
-    if (next.has(name)) next.delete(name);
-    else next.add(name);
-    setM({ ...m, paidHolidays: paidChoices.filter((n) => next.has(n)).concat([...next].filter((n) => !paidChoices.includes(n))) });
+  const shown = shownNames(m);
+  const choices = holidayChoices(todayISO());
+  const [allHolidays, setAllHolidays] = useState(false);
+  const holidayState = (n: string): HolidayState => (paid.has(n) ? 'paid' : shown.has(n) ? 'shown' : 'hidden');
+  const setHoliday = (n: string, state: HolidayState) => {
+    const nextShown = new Set(shown);
+    const nextPaid = new Set(paid);
+    nextShown.delete(n);
+    nextPaid.delete(n);
+    if (state !== 'hidden') nextShown.add(n);
+    if (state === 'paid') nextPaid.add(n);
+    setM({ ...m, shownHolidays: [...nextShown], paidHolidays: [...nextPaid] });
   };
+  const listed = allHolidays ? choices : choices.filter((c) => shown.has(c.name));
+  const hiddenCount = choices.length - choices.filter((c) => shown.has(c.name)).length;
+
+  const personal = m.personal ?? { daysPerYear: 0, resetDate: '01-01', asOf: todayISO(), balance: 0 };
+  const setPersonal = (patch: Partial<typeof personal>) => setM({ ...m, personal: { ...personal, ...patch } });
+  const [personalMonth, personalDay] = personal.resetDate.split('-').map(Number);
 
   return (
     <>
@@ -242,7 +254,7 @@ export function PtoRules({
           onChange={(v) => setSick({ separate: v === 'separate' })}
         />
         <p className="hint">
-          To mark a sick day, press and hold a day on the calendar (or right-click it) and choose Sick day.
+          To mark a sick day, press and hold a day on the calendar (or right-click it) and choose Sick.
           {sick.separate ? '' : ' It uses PTO like any other day off.'}
         </p>
         {sick.separate ? (
@@ -309,6 +321,74 @@ export function PtoRules({
       </section>
 
       <section>
+        <h2>Personal days</h2>
+        <div className="row">
+          <Field label="Personal days each year" hint="Leave at 0 if your employer doesn’t give them.">
+            {(id) => (
+              <NumberInput
+                id={id}
+                value={personal.daysPerYear}
+                step={1}
+                suffix="days"
+                onChange={(v) => {
+                  const days = Math.max(0, Math.round(v ?? 0));
+                  setPersonal({ daysPerYear: days, ...(m.personal ? {} : { balance: days * p.hoursPerDay, asOf: todayISO() }) });
+                }}
+              />
+            )}
+          </Field>
+          {personal.daysPerYear > 0 ? (
+            <Field label="Days left right now">
+              {(id) => (
+                <NumberInput
+                  id={id}
+                  value={Math.round((personal.balance / p.hoursPerDay) * 100) / 100}
+                  step={0.5}
+                  suffix="days"
+                  onChange={(v) => setPersonal({ balance: Math.max(0, v ?? 0) * p.hoursPerDay, asOf: todayISO() })}
+                />
+              )}
+            </Field>
+          ) : null}
+        </div>
+        {personal.daysPerYear > 0 ? (
+          <>
+            <div className="field">
+              <span className="label">New days arrive on</span>
+              <div className="row tight">
+                <select
+                  aria-label="Personal days month"
+                  value={personalMonth}
+                  onChange={(e) => setPersonal({ resetDate: `${String(e.target.value).padStart(2, '0')}-${String(personalDay).padStart(2, '0')}` })}
+                >
+                  {MONTHS.map((mo, i) => (
+                    <option key={mo} value={i + 1}>
+                      {mo}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Personal days day"
+                  value={personalDay}
+                  onChange={(e) => setPersonal({ resetDate: `${String(personalMonth).padStart(2, '0')}-${String(e.target.value).padStart(2, '0')}` })}
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="hint">
+              Unused personal days are lost when the new ones arrive. To use one, press and hold a day on the calendar (or right-click it)
+              and choose Personal.
+            </p>
+          </>
+        ) : null}
+      </section>
+
+      <section>
         <h2>Workdays and holidays</h2>
         <div className="row">
           <Field label="A full day off is">
@@ -334,30 +414,37 @@ export function PtoRules({
           </div>
         </div>
         <div className="field">
-          <span className="label">Label on the calendar</span>
-          <label className="check">
-            <input id="us-holidays" type="checkbox" checked={showUs} onChange={(e) => setM({ ...m, usHolidays: e.target.checked })} />
-            US holidays
-          </label>
-          <label className="check">
-            <input id="jewish-holidays" type="checkbox" checked={showJewish} onChange={(e) => setM({ ...m, jewishHolidays: e.target.checked })} />
-            Jewish holidays
-          </label>
-          <p className="hint">Labels are just labels: a holiday is a normal workday unless you mark it paid below.</p>
+          <span className="label">Holidays</span>
+          <p className="hint">
+            Choose which holidays appear on your calendar, and which your employer gives as paid days off. A holiday that’s only shown is
+            still a workday.
+          </p>
+          <ul className="plain-list holiday-choices">
+            {listed.map((c) => (
+              <li key={c.name}>
+                <span className="holiday-choice-name">
+                  {c.name}
+                  <small>{formatDate(c.next, 'short')}</small>
+                </span>
+                <Segmented
+                  label={`${c.name} on your calendar`}
+                  value={holidayState(c.name)}
+                  onChange={(v) => setHoliday(c.name, v)}
+                  options={[
+                    { value: 'hidden', label: 'Hide' },
+                    { value: 'shown', label: 'Show' },
+                    { value: 'paid', label: 'Paid' },
+                  ]}
+                />
+              </li>
+            ))}
+          </ul>
+          {hiddenCount > 0 || allHolidays ? (
+            <button type="button" className="link" onClick={() => setAllHolidays((a) => !a)}>
+              {allHolidays ? 'Show only the holidays on my calendar' : `More holidays (${hiddenCount})`}
+            </button>
+          ) : null}
         </div>
-        {paidChoices.length > 0 ? (
-          <div className="field">
-            <span className="label">Paid days off at work (no PTO used)</span>
-            <div className="chips">
-              {paidChoices.map((n) => (
-                <button key={n} type="button" className={`chip small ${paid.has(n) ? 'on' : ''}`} aria-pressed={paid.has(n)} onClick={() => togglePaid(n)}>
-                  {n}
-                </button>
-              ))}
-            </div>
-            <p className="hint">Tap the ones your employer gives off. You can also press and hold a holiday on the calendar.</p>
-          </div>
-        ) : null}
         <div className="subhead">Extra company holidays</div>
         {m.holidays.length > 0 ? (
           <ul className="plain-list">

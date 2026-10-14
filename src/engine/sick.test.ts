@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { setDayKind, splitDaysOff, tripsFromSplit } from './plan';
-import { forecastMember, forecastSick } from './forecast';
+import { forecastMember, forecastPersonal, forecastSick } from './forecast';
 import type { Member, SickPolicy } from './types';
 
 const base: Member = {
@@ -18,13 +18,13 @@ let n = 0;
 const id = () => `t${n++}`;
 
 describe('sick days', () => {
-  const days = setDayKind(setDayKind({ pto: {}, sick: {} }, '2026-10-05', 1, false), '2026-10-06', 1, true);
+  const days = setDayKind(setDayKind({ pto: {}, sick: {}, personal: {} }, '2026-10-05', 1, 'pto'), '2026-10-06', 1, 'sick');
 
   it('keeps time off and sick days apart, one kind per day', () => {
     const trips = tripsFromSplit(days, base, id);
-    expect(trips.filter((t) => t.sick)).toHaveLength(1);
+    expect(trips.filter((t) => t.kind === 'sick')).toHaveLength(1);
     expect(splitDaysOff(trips, base)).toEqual(days);
-    const moved = setDayKind(days, '2026-10-05', 0.5, true);
+    const moved = setDayKind(days, '2026-10-05', 0.5, 'sick');
     expect(moved.pto['2026-10-05']).toBeUndefined();
     expect(moved.sick['2026-10-05']).toBe(0.5);
   });
@@ -49,5 +49,26 @@ describe('sick days', () => {
     expect(f.balanceOn('2027-01-01')).toBe(40);
     const keep = forecastSick(sick({ method: 'annual', rate: 40, grantDate: '01-01' }), [], opts)!;
     expect(keep.balanceOn('2027-01-01')).toBe(56);
+  });
+});
+
+describe('personal days', () => {
+  const m: Member = { ...base, personal: { daysPerYear: 3, resetDate: '01-01', asOf: '2026-09-19', balance: 16 } };
+  const days = setDayKind(setDayKind({ pto: {}, sick: {}, personal: {} }, '2026-10-05', 1, 'personal'), '2026-10-06', 1, 'pto');
+
+  it('come out of their own balance, not PTO, and reset each year', () => {
+    const trips = tripsFromSplit(days, m, id);
+    expect(trips.find((t) => t.kind === 'personal')?.title).toBe('Personal day');
+    expect(forecastMember(m, trips, opts).balanceOn('2026-10-06')).toBe(40 + 8 - 8);
+    const f = forecastPersonal(m, trips, opts)!;
+    expect(f.balanceOn('2026-10-05')).toBe(8);
+    expect(f.balanceOn('2026-12-31')).toBe(8);
+    expect(f.balanceOn('2027-01-01')).toBe(24); // unused lost, 3 new days
+  });
+
+  it('count as PTO when personal days aren’t set up', () => {
+    const trips = tripsFromSplit(days, base, id);
+    expect(forecastMember(base, trips, opts).balanceOn('2026-10-06')).toBe(40 + 8 - 16);
+    expect(forecastPersonal(base, trips, opts)).toBeNull();
   });
 });

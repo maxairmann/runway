@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { adminOverview } from './data/sync';
 import { addDays, formatRange, todayISO, type ISODate } from './engine/dates';
-import type { Trip } from './engine/types';
+import { tripKind, type Trip } from './engine/types';
 import { newId } from './data/ids';
 import { daysOffFromTrips, splitDaysOff, tripsFromSplit } from './engine/plan';
 import { useStore } from './data/store';
@@ -183,8 +183,9 @@ export default function App() {
               for (const d of Object.keys(mine)) {
                 delete days.pto[d];
                 delete days.sick[d];
+                delete days.personal[d];
               }
-              Object.assign(t.sick ? days.sick : days.pto, mine);
+              Object.assign(days[tripKind(t)], mine);
               return { ...h, trips: tripsFromSplit(days, me, () => newId('trip')) };
             });
             setEditor(null);

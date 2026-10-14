@@ -1,5 +1,6 @@
 import { formatRange, toDay } from '../engine/dates';
-import { sickMember, tripCost } from '../engine/forecast';
+import { memberFor, tripCost } from '../engine/forecast';
+import { tripKind } from '../engine/types';
 import type { Household, Trip } from '../engine/types';
 import { amount } from '../format';
 
@@ -22,7 +23,8 @@ export function TripCard({ trip, household, onOpen }: { trip: Trip; household: H
       <span className="pass-main">
         <span className="pass-title">
           {formatRange(trip.start, trip.end)}
-          {trip.sick ? <span className="pass-tag">Sick</span> : null}
+          {tripKind(trip) === 'sick' ? <span className="pass-tag">Sick</span> : null}
+          {tripKind(trip) === 'personal' ? <span className="pass-tag personal">Personal</span> : null}
         </span>
         <span className="pass-meta">
           {span === 1 ? '1 calendar day' : `${span} calendar days`}
@@ -30,7 +32,7 @@ export function TripCard({ trip, household, onOpen }: { trip: Trip; household: H
         </span>
       </span>
       <span className="pass-stub">
-        <span className="pass-cost big">{amount(tripCost((trip.sick && sickMember(me)) || me, trip), me.policy.hoursPerDay, units)}</span>
+        <span className="pass-cost big">{amount(tripCost(memberFor(me, tripKind(trip)), trip), me.policy.hoursPerDay, units)}</span>
       </span>
     </button>
   );

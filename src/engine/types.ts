@@ -60,6 +60,19 @@ export interface SickPolicy {
   balance: number;
 }
 
+/** Personal days: a set number each year, use them or lose them. */
+export interface PersonalPolicy {
+  daysPerYear: number;
+  /** 'MM-DD' the new year's days arrive (unused ones are lost then). */
+  resetDate: string;
+  /** Hours left at the end of asOf. */
+  asOf: ISODate;
+  balance: number;
+}
+
+/** What a day off comes out of. */
+export type DayKind = 'pto' | 'sick' | 'personal';
+
 export interface Member {
   id: string;
   name: string;
@@ -74,15 +87,19 @@ export interface Member {
   holidaySet: HolidaySet;
   /** Your own extra paid days off (company-specific). */
   holidays: Holiday[];
-  /** Label US holidays on the calendar (default on). */
+  /** Older plans: label US holidays (default on). Newer plans use shownHolidays. */
   usHolidays?: boolean;
-  /** Label Jewish holidays on the calendar. */
+  /** Older plans: label Jewish holidays. Newer plans use shownHolidays. */
   jewishHolidays?: boolean;
+  /** Holidays labeled on the calendar (names). Paid holidays are always shown. */
+  shownHolidays?: string[];
   /** Holidays your employer gives off (names, e.g. "Thanksgiving"). Everything else is only a label. */
   paidHolidays?: string[];
   checkpoints: Checkpoint[];
   /** How sick time works. Missing = sick days come out of PTO. */
   sick?: SickPolicy;
+  /** Personal days, if your employer gives them. */
+  personal?: PersonalPolicy;
 }
 
 export type TripStatus = 'tentative' | 'confirmed';
@@ -102,8 +119,14 @@ export interface Trip {
   /** Days inside the trip with a custom number of hours off (neither full nor half). */
   dayHours?: Record<ISODate, number>;
   status: TripStatus;
-  /** Sick time rather than planned time off. */
+  /** Older plans: sick time rather than planned time off. Newer plans use kind. */
   sick?: boolean;
+  /** Sick or personal time; planned PTO when missing. */
+  kind?: Exclude<DayKind, 'pto'>;
+}
+
+export function tripKind(t: Trip): DayKind {
+  return t.kind ?? (t.sick ? 'sick' : 'pto');
 }
 
 export type Units = 'days' | 'hours';

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, formatDate, fromDay, partsOf, toDay, weekdayOf, type ISODate } from '../engine/dates';
-import { forecastMember, forecastSick, nextLoss, overdrawnFrom, worstShortfall, type ForecastOptions } from '../engine/forecast';
+import { forecastMember, forecastPersonal, forecastSick, memberFor, nextLoss, overdrawnFrom, worstShortfall, type ForecastOptions } from '../engine/forecast';
 import { labeledHolidays, paidNames, type HolidayGroup } from '../engine/holidays';
-import { cycleDay, holidaySets, isWorkday, monthGrid, setDayKind, splitDaysOff, tripsFromSplit, type DaysOff } from '../engine/plan';
-import type { Household } from '../engine/types';
+import { cycleDay, holidaySets, isWorkday, kindOf, monthGrid, setDayKind, splitDaysOff, tripsFromSplit, type DaysOff } from '../engine/plan';
+import { tripKind, type DayKind, type Household } from '../engine/types';
 import { newId } from '../data/ids';
 import { amount, toUnits } from '../format';
 import { Segmented, Sheet } from './ui';
@@ -58,14 +58,12 @@ function BeachUmbrella() {
   );
 }
 
-/** A thermometer: a sick day. */
-function Thermometer() {
+/** An emoji used as a day icon (sick: 🤒, personal: ☕). */
+function Emoji({ char }: { char: string }) {
   return (
-    <svg className="icon-sick" viewBox="0 0 24 24" aria-hidden="true">
-      <path className="tube" d="M9.6 4.6a2.4 2.4 0 0 1 4.8 0v8.9a4.6 4.6 0 1 1-4.8 0z" />
-      <path className="mercury" d="M11.1 8.2h1.8v6.3a2.9 2.9 0 1 1-1.8 0z" />
-      <path className="ticks" d="M14.4 6.2h1.8M14.4 8.7h1.3M14.4 11.2h1.8" />
-    </svg>
+    <span className="day-emoji" aria-hidden="true">
+      {char}
+    </span>
   );
 }
 
@@ -180,10 +178,14 @@ export function PlanView({
 
   const parts = useMemo(() => splitDaysOff(household.trips, me), [household.trips, me]);
   const daysOff = parts.pto;
-  const sickDays = parts.sick;
+  const shareOf = (d: ISODate) => parts.pto[d] ?? parts.sick[d] ?? parts.personal[d];
   const forecast = useMemo(() => forecastMember(me, household.trips, opts), [household.trips, me, until]); // eslint-disable-line react-hooks/exhaustive-deps
   // Only when sick time has its own balance; otherwise sick days are already in the PTO forecast.
   const sickForecast = useMemo(() => forecastSick(me, household.trips, opts), [household.trips, me, until]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only when personal days are set up; otherwise they count as PTO.
+  const personalForecast = useMemo(() => forecastPersonal(me, household.trips, opts), [household.trips, me, until]); // eslint-disable-line react-hooks/exhaustive-deps
+  const kindForecast = (k: DayKind) => (k === 'sick' ? sickForecast : k === 'personal' ? personalForecast : forecast) ?? forecast;
+  const kindFloor = (k: DayKind) => (kindForecast(k) === forecast ? floor : 0);
 
   // Paydays (and any other day PTO is added) from today on, with the balance right after.
   const paydays = useMemo(() => {
@@ -222,9 +224,8 @@ export function PlanView({
   const shortfall = useMemo(() => {
     const worst = worstShortfall(forecast, me, today);
     if (!worst) return null;
-    const separate = !!me.sick?.separate;
     const helpers = household.trips
-      .filter((t) => t.end >= today && t.start <= worst.date && !(t.sick && separate))
+      .filter((t) => t.end >= today && t.start <= worst.date && memberFor(me, tripKind(t)) === me)
       .filter((t) => {
         const firstShort = overdrawnFrom(forecast, me, t.start);
         return firstShort === null || firstShort > t.end; // its own days aren't red
@@ -240,8 +241,8 @@ export function PlanView({
   }, [forecast, household.trips, me, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = (next: DaysOff, d: ISODate) => {
-    const share = next.pto[d] ?? next.sick[d];
-    if (share && (share !== (daysOff[d] ?? sickDays[d]) || !!next.sick[d] !== !!sickDays[d])) setPopped(d);
+    const share = next.pto[d] ?? next.sick[d] ?? next.personal[d];
+    if (share && (share !== shareOf(d) || kindOf(next, d) !== kindOf(parts, d))) setPopped(d);
     update((h) => ({ ...h, trips: tripsFromSplit(next, me, () => newId('trip')) }));
   };
   const tap = (d: ISODate) => {
@@ -249,8 +250,9 @@ export function PlanView({
       held.current = false; // the click that ends a long press
       return;
     }
-    // A sick day clears on tap; anything else cycles full → half → working.
-    save(sickDays[d] ? setDayKind(parts, d, 0, true) : { pto: cycleDay(daysOff, d), sick: sickDays }, d);
+    // A sick or personal day clears on tap; anything else cycles full → half → working.
+    const k = kindOf(parts, d);
+    save(k && k !== 'pto' ? setDayKind(parts, d, 0, k) : { ...parts, pto: cycleDay(daysOff, d) }, d);
   };
 
   // Press and hold (touch) or right-click (mouse) opens the custom-hours menu.
@@ -362,7 +364,18 @@ export function PlanView({
         </div>
         <p className="plan-banked">
           You have {amount(forecast.balanceOn(today), perDay, units)} banked today
-          {sickForecast ? `, plus ${amount(sickForecast.balanceOn(today), perDay, units)} of sick time` : ''}.
+          {sickForecast ? `, plus ${amount(sickForecast.balanceOn(today), perDay, units)} of sick time` : ''}
+          {personalForecast && me.personal
+            ? (() => {
+                // What's left to plan before the next reset, after personal days already on the calendar.
+                const [rm, rd] = me.personal.resetDate.split('-').map(Number);
+                let reset = `${today.slice(0, 4)}-${String(rm).padStart(2, '0')}-${String(rd).padStart(2, '0')}`;
+                if (reset <= today) reset = `${Number(today.slice(0, 4)) + 1}${reset.slice(4)}`;
+                const left = Math.max(0, Math.round((personalForecast.balanceOn(addDays(reset, -1)) / perDay) * 10) / 10);
+                return `${sickForecast ? ' and' : ', plus'} ${left} personal ${left === 1 ? 'day' : 'days'} left to plan before ${formatDate(reset, 'short')}`;
+              })()
+            : ''}
+          .
         </p>
         {loss && loss.hours >= 0.5 ? (
           <p className="plan-loss">
@@ -445,15 +458,16 @@ export function PlanView({
                   const past = d < today;
                   const beforeStart = d <= me.startDate;
                   const work = isWorkday(me, n, hol);
-                  const sickShare = sickDays[d];
-                  const off = daysOff[d] ?? sickShare;
-                  const isSick = !!sickShare;
+                  const dayKind = kindOf(parts, d);
+                  const off = shareOf(d);
+                  const isSick = dayKind === 'sick';
+                  const isPersonal = dayKind === 'personal';
                   const offHours = off ? Math.round(off * perDay * 100) / 100 : 0;
                   const kind = !off ? null : off === 1 ? 'full' : off === 0.5 ? 'half' : 'custom';
                   const hl = holidayLabels.get(d);
                   const paidHoliday = !!hl?.paid && !work && me.policy.workDays.includes(weekdayOf(n));
                   const payday = paydays.get(d);
-                  const below = !!off && !past && (isSick && sickForecast ? sickForecast.balanceOn(d) < -1e-9 : forecast.balanceOn(d) < floor - 1e-9);
+                  const below = !!off && !past && kindForecast(dayKind ?? 'pto').balanceOn(d) < kindFloor(dayKind ?? 'pto') - 1e-9;
                   const cls = [
                     'cal-day',
                     adjacent ? 'adjacent' : '',
@@ -462,6 +476,7 @@ export function PlanView({
                     paidHoliday ? 'holiday' : '',
                     kind ? `day-off ${kind}` : '',
                     isSick ? 'sick' : '',
+                    isPersonal ? 'personal' : '',
                     below ? 'below' : '',
                     d === today ? 'today' : '',
                     beforeStart ? 'before-start' : '',
@@ -471,8 +486,8 @@ export function PlanView({
                   const label = [
                     `${WEEKDAY_NAMES[weekdayOf(n)]}, ${formatDate(d, 'short')}`,
                     hl ? (paidHoliday ? `${hl.name}, paid holiday` : `${hl.name}, a workday`) : '',
-                    kind === 'full' ? (isSick ? 'sick day' : 'day off') : kind === 'half' ? (isSick ? 'half sick day' : 'half day off') : kind === 'custom' ? `${offHours} hours ${isSick ? 'sick' : 'off'}` : '',
-                    below ? (isSick && sickForecast ? 'more sick time than you have' : 'puts you below zero') : '',
+                    kind ? `${kind === 'full' ? '' : kind === 'half' ? 'half ' : `${offHours} hours, `}${isSick ? 'sick day' : isPersonal ? 'personal day' : 'day off'}` : '',
+                    below ? (isSick && sickForecast ? 'more sick time than you have' : isPersonal && personalForecast ? 'more personal days than you have' : 'puts you below zero') : '',
                     off && beforeStart ? 'already counted in your starting balance' : '',
                     payday !== undefined ? `payday, ${amount(payday, perDay, units)} banked after` : '',
                   ]
@@ -514,7 +529,7 @@ export function PlanView({
                       ) : null}
                       {kind ? (
                         <span className={`off-mark ${popped === d ? 'pop' : ''}`} onAnimationEnd={() => setPopped(null)}>
-                          {isSick ? <Thermometer /> : kind === 'full' ? <BeachUmbrella /> : <Car />}
+                          {isSick ? <Emoji char="🤒" /> : isPersonal ? <Emoji char="☕" /> : kind === 'full' ? <BeachUmbrella /> : <Car />}
                           {kind === 'half' ? <span className="part-label">½</span> : null}
                           {kind === 'custom' ? <span className="part-label">{offHours}h</span> : null}
                         </span>
@@ -557,6 +572,11 @@ export function PlanView({
               </div>
             ) : null}
           </div>
+        ) : personalForecast?.firstOverdrawn ? (
+          <p>
+            <strong>You’d run out of personal days on {formatDate(personalForecast.firstOverdrawn, 'medium')}.</strong> Change a red personal
+            day to PTO, or remove it.
+          </p>
         ) : sickForecast?.firstOverdrawn ? (
           <p>
             <strong>
@@ -573,7 +593,7 @@ export function PlanView({
         ) : (
           <p>
             Tap a workday to take it off, including past days like a sick day. Tap again for a half day, or{' '}
-            {narrow ? 'press and hold' : 'right-click'} for other hours or a sick day. Green tags show your balance on paydays.
+            {narrow ? 'press and hold' : 'right-click'} for other hours, a sick day{personalForecast ? ', or a personal day' : ''}. Green tags show your balance on paydays.
           </p>
         )}
       </div>
@@ -582,12 +602,13 @@ export function PlanView({
         <CustomHours
           date={custom}
           perDay={perDay}
-          current={daysOff[custom] ?? sickDays[custom] ?? 0}
-          sick={!!sickDays[custom]}
+          current={shareOf(custom) ?? 0}
+          kind={kindOf(parts, custom) ?? 'pto'}
           sickSeparate={!!sickForecast}
-          onKind={(sick) => {
-            const share = daysOff[custom] ?? sickDays[custom];
-            if (share) save(setDayKind(parts, custom, share, sick), custom);
+          personalOn={!!personalForecast}
+          onKind={(k) => {
+            const share = shareOf(custom);
+            if (share) save(setDayKind(parts, custom, share, k), custom);
           }}
           holiday={holidayLabels.get(custom)}
           onPaid={(paid) => {
@@ -595,8 +616,8 @@ export function PlanView({
             if (h) togglePaid(h.base, paid);
           }}
           onClose={() => setCustom(null)}
-          onSet={(hours, sick) => {
-            save(setDayKind(parts, custom, hours / perDay, sick), custom);
+          onSet={(hours, k) => {
+            save(setDayKind(parts, custom, hours / perDay, k), custom);
             setCustom(null);
           }}
         />
@@ -609,8 +630,9 @@ function CustomHours({
   date,
   perDay,
   current,
-  sick: initialSick,
+  kind: initialKind,
   sickSeparate,
+  personalOn,
   holiday,
   onPaid,
   onKind,
@@ -620,16 +642,21 @@ function CustomHours({
   date: ISODate;
   perDay: number;
   current: number;
-  sick: boolean;
+  kind: DayKind;
   sickSeparate: boolean;
+  personalOn: boolean;
   holiday?: DayHoliday;
   onPaid: (paid: boolean) => void;
-  onKind: (sick: boolean) => void;
-  onSet: (hours: number, sick: boolean) => void;
+  onKind: (kind: DayKind) => void;
+  onSet: (hours: number, kind: DayKind) => void;
   onClose: () => void;
 }) {
-  const [sick, setSick] = useState(initialSick);
-  const set = (h: number) => onSet(h, sick);
+  const [dayKind, setDayKindLocal] = useState<DayKind>(initialKind);
+  const sick = dayKind === 'sick';
+  const personal = dayKind === 'personal';
+  const set = (h: number) => onSet(h, dayKind);
+  const fullIcon = sick ? <Emoji char="🤒" /> : personal ? <Emoji char="☕" /> : <BeachUmbrella />;
+  const halfIcon = sick ? <Emoji char="🤒" /> : personal ? <Emoji char="☕" /> : <Car />;
   const now = Math.round(current * perDay * 100) / 100;
   const [value, setValue] = useState<string>(now && now !== perDay && now !== perDay / 2 ? String(now) : '');
   const picks = [1, 2, 3, 6].filter((h) => h < perDay && h !== perDay / 2);
@@ -653,25 +680,27 @@ function CustomHours({
       <div className="field kind-toggle">
         <Segmented
           label="Counts as"
-          value={sick ? 'sick' : 'pto'}
+          value={dayKind}
           options={[
-            { value: 'pto', label: 'Time off' },
-            { value: 'sick', label: 'Sick day' },
+            { value: 'pto', label: 'PTO' },
+            { value: 'sick', label: 'Sick' },
+            ...(personalOn || personal ? [{ value: 'personal' as const, label: 'Personal' }] : []),
           ]}
           onChange={(v) => {
-            setSick(v === 'sick');
-            if (current > 0) onKind(v === 'sick');
+            setDayKindLocal(v);
+            if (current > 0) onKind(v);
           }}
         />
         {sick ? <p className="hint">{sickSeparate ? 'Comes out of your sick time.' : 'Comes out of your PTO. If you have separate sick time, set it up in Settings.'}</p> : null}
+        {personal ? <p className="hint">{personalOn ? 'Uses one of your personal days.' : 'Comes out of your PTO. Set up personal days in Settings.'}</p> : null}
       </div>
       <div className="hours-grid">
         <button type="button" className={`hours-choice ${now === perDay ? 'on' : ''}`} onClick={() => set(perDay)}>
-          {sick ? <Thermometer /> : <BeachUmbrella />}
+          {fullIcon}
           Full day ({perDay} h)
         </button>
         <button type="button" className={`hours-choice ${now === perDay / 2 ? 'on' : ''}`} onClick={() => set(perDay / 2)}>
-          {sick ? <Thermometer /> : <Car />}
+          {halfIcon}
           Half day ({perDay / 2} h)
         </button>
       </div>

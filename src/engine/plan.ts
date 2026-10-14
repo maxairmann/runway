@@ -2,7 +2,7 @@
 
 import { daysInMonth, fromDay, partsOf, toDay, weekdayOf, type ISODate } from './dates';
 import { memberHolidays } from './holidays';
-import type { Member, Trip, TripStatus } from './types';
+import { tripKind, type DayKind, type Member, type Trip, type TripStatus } from './types';
 
 /** Days off, as a share of a full day: 1 = full day, 0.5 = half day, anything else = custom hours. */
 export type Picks = Record<ISODate, number>;
@@ -117,34 +117,35 @@ export function tripsFromDaysOff(days: Picks, member: Member, makeId: () => stri
   return groupPicks(days, [member]).map((g) => groupToTrip(g, [member.id], makeId(), 'Time off', 'confirmed', member.policy.hoursPerDay));
 }
 
-/** Days off split by kind: planned time off and sick days. A day is in at most one. */
-export interface DaysOff {
-  pto: Picks;
-  sick: Picks;
-}
+/** Days off split by what they come out of. A day is in at most one. */
+export type DaysOff = Record<DayKind, Picks>;
+
+export const DAY_KINDS: DayKind[] = ['pto', 'sick', 'personal'];
 
 export function splitDaysOff(trips: Trip[], member: Member): DaysOff {
-  return {
-    pto: daysOffFromTrips(trips.filter((t) => !t.sick), member),
-    sick: daysOffFromTrips(trips.filter((t) => t.sick), member),
-  };
+  const of = (k: DayKind) => daysOffFromTrips(trips.filter((t) => tripKind(t) === k), member);
+  return { pto: of('pto'), sick: of('sick'), personal: of('personal') };
 }
+
+const KIND_TITLES: Record<DayKind, string> = { pto: 'Time off', sick: 'Sick', personal: 'Personal day' };
 
 export function tripsFromSplit(days: DaysOff, member: Member, makeId: () => string): Trip[] {
-  return [
-    ...tripsFromDaysOff(days.pto, member, makeId),
-    ...tripsFromDaysOff(days.sick, member, makeId).map((t) => ({ ...t, title: 'Sick', sick: true })),
-  ];
+  return DAY_KINDS.flatMap((k) =>
+    tripsFromDaysOff(days[k], member, makeId).map((t) => (k === 'pto' ? t : { ...t, title: KIND_TITLES[k], kind: k })),
+  );
 }
 
-/** Set a day to a share of a full day, as time off or a sick day; 0 clears it. */
-export function setDayKind(days: DaysOff, d: ISODate, share: number, sick: boolean): DaysOff {
-  const pto = { ...days.pto };
-  const sk = { ...days.sick };
-  delete pto[d];
-  delete sk[d];
-  if (share > 0) (sick ? sk : pto)[d] = Math.min(1, share);
-  return { pto, sick: sk };
+/** Which kind a day is, if it's off. */
+export function kindOf(days: DaysOff, d: ISODate): DayKind | null {
+  return DAY_KINDS.find((k) => days[k][d] !== undefined) ?? null;
+}
+
+/** Set a day to a share of a full day, of one kind; 0 clears it. */
+export function setDayKind(days: DaysOff, d: ISODate, share: number, kind: DayKind): DaysOff {
+  const next = { pto: { ...days.pto }, sick: { ...days.sick }, personal: { ...days.personal } };
+  for (const k of DAY_KINDS) delete next[k][d];
+  if (share > 0) next[kind][d] = Math.min(1, share);
+  return next;
 }
 
 /** Tap a day: off (full) → half day → back to working. A custom amount clears on tap. */

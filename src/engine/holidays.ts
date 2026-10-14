@@ -108,17 +108,42 @@ export function paidNames(member: Member): Set<string> {
   return new Set((member.holidaySet === 'federal' ? federal(y) : common(y)).map((h) => h.name));
 }
 
+/** US federal holidays (plus the day after Thanksgiving) are labeled by default. */
+const DEFAULT_SHOWN = US_HOLIDAY_NAMES;
+
+/** Holiday names labeled on this person's calendar. Paid holidays are always included. Older plans fall back to their switches. */
+export function shownNames(member: Member): Set<string> {
+  const shown = member.shownHolidays
+    ? new Set(member.shownHolidays)
+    : new Set([...((member.usHolidays ?? true) ? DEFAULT_SHOWN : []), ...(member.jewishHolidays ? JEWISH_HOLIDAY_NAMES : [])]);
+  for (const n of paidNames(member)) shown.add(n);
+  return shown;
+}
+
+/** Every holiday a person can show or mark paid, in the order they next come up after `from`. */
+export function holidayChoices(from: ISODate): { name: string; next: ISODate }[] {
+  const y = Number(from.slice(0, 4));
+  const all = [
+    ...[y, y + 1].flatMap((yr) => usHolidays(yr).map((h) => ({ name: h.name, date: h.date }))),
+    ...jewishHolidays(y, y + 1, { minor: true }).map((h) => ({ name: baseName(h.name), date: h.date })),
+  ]
+    .filter((h) => h.date >= from)
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+  const seen = new Map<string, ISODate>();
+  for (const h of all) if (!seen.has(h.name)) seen.set(h.name, h.date);
+  return [...seen].map(([name, next]) => ({ name, next }));
+}
+
 /** Every holiday labeled on this person's calendar, paid or not. */
 export function labeledHolidays(member: Member, fromYear: number, toYear: number): LabeledHoliday[] {
   const out: LabeledHoliday[] = [];
-  const paid = paidNames(member);
-  const showUs = member.usHolidays ?? true;
+  const shown = shownNames(member);
   for (let y = fromYear; y <= toYear; y++) {
-    for (const h of usHolidays(y)) if (showUs || paid.has(h.name)) out.push({ ...h, base: h.name, group: 'us' });
+    for (const h of usHolidays(y)) if (shown.has(h.name)) out.push({ ...h, base: h.name, group: 'us' });
   }
   for (const h of jewishHolidays(fromYear, toYear, { minor: true })) {
     const base = baseName(h.name);
-    if (member.jewishHolidays || paid.has(base)) out.push({ ...h, base, group: 'jewish' });
+    if (shown.has(base)) out.push({ ...h, base, group: 'jewish' });
   }
   return out.sort((a, b) => (a.date < b.date ? -1 : 1));
 }
