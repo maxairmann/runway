@@ -82,6 +82,8 @@ function Car() {
 }
 
 const HOLD_MS = 450;
+const HINT_KEY = 'runway.monthHintSeen';
+const MONTH_ABBR = (m: number) => MONTHS[m - 1].slice(0, 3);
 
 /** "May 17–21", "Mar 30 – Apr 2", or "Oct 7". */
 function shortRange(start: ISODate, end: ISODate): string {
@@ -152,6 +154,14 @@ export function PlanView({
   const t = partsOf(toDay(today));
   const first: Month = { y: t.y, m: t.m };
   const [month, setMonth] = useState<Month>(first);
+  const [slide, setSlide] = useState<'next' | 'prev' | null>(null);
+  const [showHint, setShowHint] = useState(() => {
+    try {
+      return localStorage.getItem(HINT_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
   const [popped, setPopped] = useState<ISODate | null>(null);
   const [custom, setCustom] = useState<ISODate | null>(null);
   const hold = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
@@ -270,25 +280,67 @@ export function PlanView({
   const low = forecast.low;
   // Look back a year (to record sick days and other time already taken) and ahead two.
   const earliest = shiftMonth(first, -12);
-  const atFirst = month.y === earliest.y && month.m === earliest.m;
   const jumpOptions = Array.from({ length: 36 }, (_, i) => shiftMonth(earliest, i));
+  const latest = jumpOptions[jumpOptions.length - (narrow ? 1 : 3)];
+  const index = (mo: Month) => mo.y * 12 + mo.m;
+  const atFirst = index(month) <= index(earliest);
+  const atLast = index(month) >= index(latest);
+  const atToday = index(month) === index(first);
+  const prevMonth = shiftMonth(month, -1);
+  const nextMonth = shiftMonth(month, 1);
 
-  // Swipe left or right on the calendar to change months (phones).
-  const swipe = useRef<{ x: number; y: number } | null>(null);
+  // Changing months: remember the direction so the calendar slides the right way.
+  const go = (target: Month) => {
+    const t = index(target) < index(earliest) ? earliest : index(target) > index(latest) ? latest : target;
+    if (index(t) === index(month)) return;
+    setSlide(index(t) > index(month) ? 'next' : 'prev');
+    setMonth(t);
+    if (showHint) {
+      setShowHint(false);
+      try {
+        localStorage.setItem(HINT_KEY, '1');
+      } catch {
+        // storage unavailable; the hint just shows again next visit
+      }
+    }
+  };
+
+  // Swipe on phones: the calendar follows your finger, then slides to the next or previous month.
+  const swipe = useRef<{ x: number; y: number; horizontal: boolean | null } | null>(null);
+  const monthsRef = useRef<HTMLDivElement>(null);
+  const setDrag = (dx: number | null) => {
+    const el = monthsRef.current;
+    if (!el) return;
+    el.style.transition = dx === null ? 'transform 0.18s ease-out' : 'none';
+    el.style.transform = dx === null ? '' : `translateX(${dx}px)`;
+  };
   const onTouchStart = (e: React.TouchEvent) => {
     const tch = e.touches[0];
-    swipe.current = { x: tch.clientX, y: tch.clientY };
+    swipe.current = { x: tch.clientX, y: tch.clientY, horizontal: null };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const s = swipe.current;
+    if (!s) return;
+    const tch = e.touches[0];
+    const dx = tch.clientX - s.x;
+    const dy = tch.clientY - s.y;
+    if (s.horizontal === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) s.horizontal = Math.abs(dx) > Math.abs(dy);
+    if (!s.horizontal) return;
+    if (hold.current) endHold(); // a swipe isn't a long press
+    // Resist at the ends of the range.
+    const edge = (dx > 0 && atFirst) || (dx < 0 && atLast);
+    setDrag(edge ? dx / 4 : dx);
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     const s = swipe.current;
     swipe.current = null;
     if (!s) return;
-    const tch = e.changedTouches[0];
-    const dx = tch.clientX - s.x;
-    const dy = tch.clientY - s.y;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (dx < 0) setMonth((mo) => shiftMonth(mo, 1));
-    else if (!atFirst) setMonth((mo) => shiftMonth(mo, -1));
+    const dx = e.changedTouches[0].clientX - s.x;
+    setDrag(null);
+    if (!s.horizontal || Math.abs(dx) < 50) return;
+    held.current = true; // swallow the click that ends the swipe
+    setTimeout(() => (held.current = false), 0);
+    go(shiftMonth(month, dx < 0 ? 1 : -1));
   };
 
   const short = (v: number) => {
@@ -319,40 +371,59 @@ export function PlanView({
         ) : null}
       </header>
 
-      <section className="calendar" aria-label="Calendar" onTouchStart={narrow ? onTouchStart : undefined} onTouchEnd={narrow ? onTouchEnd : undefined}>
+      <section
+        className="calendar"
+        aria-label="Calendar"
+        onTouchStart={narrow ? onTouchStart : undefined}
+        onTouchMove={narrow ? onTouchMove : undefined}
+        onTouchEnd={narrow ? onTouchEnd : undefined}
+      >
         <CorgiPeek />
         <div className="month-nav">
-          <button type="button" className="icon-btn" aria-label="Previous month" disabled={atFirst} onClick={() => setMonth((mo) => shiftMonth(mo, -1))}>
-            ‹
+          <button type="button" className="month-step prev" disabled={atFirst} onClick={() => go(prevMonth)} aria-label={`Previous month, ${MONTHS[prevMonth.m - 1]}`}>
+            <span aria-hidden="true">‹</span> {MONTH_ABBR(prevMonth.m)}
           </button>
-          <label className="month-jump">
-            <span className="visually-hidden">Jump to month</span>
-            <select
-              id="month-jump"
-              value={`${month.y}-${month.m}`}
-              onChange={(e) => {
-                const [y, m] = e.target.value.split('-').map(Number);
-                setMonth({ y, m });
-              }}
-            >
-              {jumpOptions.map((mo) => (
-                <option key={`${mo.y}-${mo.m}`} value={`${mo.y}-${mo.m}`}>
-                  {narrow
-                    ? `${MONTHS[mo.m - 1]} ${mo.y}`
-                    : (() => {
-                        const end = shiftMonth(mo, 2);
-                        return `${MONTHS[mo.m - 1].slice(0, 3)}${mo.y === end.y ? '' : ` ${mo.y}`} – ${MONTHS[end.m - 1].slice(0, 3)} ${end.y}`;
-                      })()}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="icon-btn" aria-label="Next month" onClick={() => setMonth((mo) => shiftMonth(mo, 1))}>
-            ›
+          <div className="month-center">
+            <label className="month-jump">
+              <span className="visually-hidden">Jump to month</span>
+              <select
+                id="month-jump"
+                value={`${month.y}-${month.m}`}
+                onChange={(e) => {
+                  const [y, m] = e.target.value.split('-').map(Number);
+                  go({ y, m });
+                }}
+              >
+                {jumpOptions.map((mo) => (
+                  <option key={`${mo.y}-${mo.m}`} value={`${mo.y}-${mo.m}`}>
+                    {narrow
+                      ? `${MONTHS[mo.m - 1]} ${mo.y}`
+                      : (() => {
+                          const end = shiftMonth(mo, 2);
+                          return `${MONTHS[mo.m - 1].slice(0, 3)}${mo.y === end.y ? '' : ` ${mo.y}`} – ${MONTHS[end.m - 1].slice(0, 3)} ${end.y}`;
+                        })()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!atToday ? (
+              <button type="button" className="today-link" onClick={() => go(first)}>
+                Back to today
+              </button>
+            ) : null}
+          </div>
+          <button type="button" className="month-step next" disabled={atLast} onClick={() => go(nextMonth)} aria-label={`Next month, ${MONTHS[nextMonth.m - 1]}`}>
+            {MONTH_ABBR(nextMonth.m)} <span aria-hidden="true">›</span>
           </button>
         </div>
+        {narrow && showHint ? (
+          <p className="month-hint">
+            <span aria-hidden="true">←</span> Swipe or tap the arrows to change months <span aria-hidden="true">→</span>
+          </p>
+        ) : null}
 
-        <div className="months">
+        <div className="months-window">
+        <div key={`${month.y}-${month.m}`} ref={monthsRef} className={`months ${slide ? `slide-${slide}` : ''}`}>
           {views.map((v) => (
             <div key={`${v.y}-${v.m}`} className="month">
               {!narrow ? (
@@ -456,6 +527,7 @@ export function PlanView({
             </div>
           ))}
         </div>
+        </div>
       </section>
 
       <div className={`plan-bar ${shortfall ? 'problem' : ''}`} aria-live="polite">
@@ -476,7 +548,7 @@ export function PlanView({
                     className="chip tiny"
                     onClick={() => {
                       const p = partsOf(toDay(trip.start));
-                      setMonth({ y: p.y, m: p.m });
+                      go({ y: p.y, m: p.m });
                     }}
                   >
                     {shortRange(trip.start, trip.end)} · {amount(frees, perDay, units)}

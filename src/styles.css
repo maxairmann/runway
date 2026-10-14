@@ -2218,3 +2218,94 @@ input[type='checkbox'] {
   height: 1px;
   overflow: hidden;
 }
+
+/* Month navigation: labeled steps, a way back to today, and a slide that shows direction */
+.month-nav {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.4rem;
+  padding: 0 0 0.6rem;
+}
+.month-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent-ink);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.month-step span {
+  font-size: 1.35rem;
+  line-height: 1;
+  margin-top: -2px;
+}
+.month-step:disabled {
+  opacity: 0.35;
+}
+.month-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.month-jump select {
+  max-width: 100%;
+}
+.today-link {
+  min-height: 28px;
+  padding: 0.1rem 0.6rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.month-hint {
+  margin: -0.2rem 0 0.6rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+.months-window {
+  overflow: hidden;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+.months {
+  will-change: transform;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .months.slide-next {
+    animation: month-in-next 0.22s ease-out;
+  }
+  .months.slide-prev {
+    animation: month-in-prev 0.22s ease-out;
+  }
+}
+@keyframes month-in-next {
+  from {
+    transform: translateX(28%);
+    opacity: 0.3;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes month-in-prev {
+  from {
+    transform: translateX(-28%);
+    opacity: 0.3;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
