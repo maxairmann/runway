@@ -69,12 +69,12 @@ export interface Invitee {
 }
 
 /** Calls the admin-only invite endpoint. Throws with `status` set (403 = not the admin, 404/501 = not set up). */
-async function inviteApi<T>(method: 'GET' | 'POST' | 'DELETE', email?: string): Promise<T> {
+async function inviteApi<T>(method: 'GET' | 'POST' | 'DELETE', email?: string, param = 'email'): Promise<T> {
   const sb = await client();
   const { data } = await sb.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw Object.assign(new Error('Sign in first.'), { status: 401 });
-  const query = method === 'DELETE' && email ? `?email=${encodeURIComponent(email)}` : '';
+  const query = method === 'DELETE' && email ? `?${param}=${encodeURIComponent(email)}` : '';
   const res = await fetch(`/api/invite${query}`, {
     method,
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -87,7 +87,25 @@ async function inviteApi<T>(method: 'GET' | 'POST' | 'DELETE', email?: string): 
   return body;
 }
 
-export const listInvitees = () => inviteApi<{ users: Invitee[] }>('GET').then((b) => b.users);
+export interface AccountRequest {
+  email: string;
+  requestedAt: string;
+}
+
+/** Admin only: everyone with an account, and requests waiting for a yes or no. */
+export const adminOverview = () => inviteApi<{ users: Invitee[]; requests: AccountRequest[] }>('GET');
+export const declineRequest = (email: string) => inviteApi<{ ok: true }>('DELETE', email, 'request');
+
+/** Public: ask the admin for an account. */
+export async function requestAccount(email: string, website: string): Promise<void> {
+  const res = await fetch('/api/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, website }),
+  });
+  const body = (await res.json().catch(() => null)) as { error?: string } | null;
+  if (!res.ok || body === null) throw new Error(body?.error ?? 'Couldn’t send your request. Try again in a minute.');
+}
 /** Creates the account (or resets its password) and returns the temporary password to pass on. */
 export const sendInvite = (email: string) => inviteApi<{ ok: true; existed: boolean; password: string }>('POST', email);
 export const removeInvitee = (email: string) => inviteApi<{ ok: true }>('DELETE', email);

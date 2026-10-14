@@ -20,7 +20,7 @@ It started as a Google Sheet my wife and I used to plan a year of time off. The 
 - **When can I go?** Ask for N workdays and get the first stretch that fits, counting trips already planned.
 - **Paystub corrections.** Enter your real balance on any date and the forecast re-anchors there.
 - **Undo.** Deleting a trip or clearing your picks can be undone.
-- **Sync (optional, invite-only).** The admin adds people and texts them a temporary password; they pick their own on first sign-in. No email service needed.
+- **Accounts (invite-only).** People request an account from the landing page; the admin approves it and sends a temporary password, and they choose their own on first sign-in. They stay signed in on that device. No email service needed.
 - **Installable.** Add it to an Android or iPhone home screen; it opens full-screen and works offline.
 
 ## How the forecast works
@@ -57,7 +57,7 @@ npm test
 
 **Data model.** A plan is one JSON document. Saves are last-write-wins with a 700 ms debounce, and Supabase realtime pushes each save to your other devices. Access control lives in Postgres: row-level security means you can only read or write your own plan (`supabase/schema.sql`).
 
-**Three modes.** *Demo* (sample data, resettable), *this phone* (localStorage, no account), and *synced* (Supabase). Without Supabase keys the app runs fully in the first two modes.
+**Modes.** *Demo* (sample data, resettable) and *your account* (Supabase). Without Supabase keys, the app keeps plans on the device instead.
 
 ## Run it
 
@@ -68,9 +68,9 @@ npm run dev
 
 Open the printed URL. To try it on your phone on the same Wi-Fi, run `npm run dev -- --host` and open the network URL.
 
-## Turn on sync (optional, invite-only)
+## Turn on accounts (invite-only)
 
-Synced plans are invite-only. One admin adds people from Settings → Invites and gets a temporary password to pass on (text it, say it); the person chooses their own password the first time they sign in. Nothing is emailed, so there's no email service to set up. Each person's plan is private.
+Accounts are invite-only. Anyone can ask for one from the landing page (`api/request.js` stores the email); the admin sees a badge, approves or declines in Settings → People, and gets a temporary password to pass on (text it, say it). The person chooses their own password the first time they sign in and stays signed in on that device. Nothing is emailed, so there's no email service to set up. Each person's plan is private.
 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. In the SQL editor, run `supabase/schema.sql`.

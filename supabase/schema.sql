@@ -108,3 +108,11 @@ begin
   alter publication supabase_realtime add table public.households;
 exception when duplicate_object then null;
 end $$;
+
+-- Account requests from the landing page. Only the server (api/request.js and
+-- api/invite.js, using the secret key) can read or write them: RLS is on with no policies.
+create table if not exists public.account_requests (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+alter table public.account_requests enable row level security;

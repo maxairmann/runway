@@ -2175,3 +2175,46 @@ input[type='checkbox'] {
   font-size: 0.9rem;
   resize: vertical;
 }
+.requests {
+  margin-bottom: 1.1rem;
+}
+.requests h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.count-badge,
+.tab-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.tabs .side {
+  position: relative;
+}
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 22px);
+}
+.small-btn {
+  min-height: 36px;
+  padding: 0.3rem 0.9rem;
+}
+.hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

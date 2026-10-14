@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { adminOverview } from './data/sync';
 import { addDays, formatRange, todayISO, type ISODate } from './engine/dates';
 import type { Trip } from './engine/types';
 import { newId } from './data/ids';
@@ -29,6 +30,21 @@ export default function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today: ISODate = useMemo(() => todayISO(), []);
+
+  // Admin only: how many account requests are waiting (the call fails quietly for everyone else).
+  const [requests, setRequests] = useState(0);
+  const signedIn = mode === 'cloud' && cloud.phase === 'ready';
+  useEffect(() => {
+    if (!signedIn) return;
+    const check = () =>
+      void adminOverview()
+        .then((o) => setRequests(o.requests.length))
+        .catch(() => setRequests(0));
+    check();
+    const onShow = () => document.visibilityState === 'visible' && check();
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [signedIn]);
 
   useEffect(() => {
     document.title = household ? `${household.name} – Runway` : 'Runway';
@@ -91,7 +107,7 @@ export default function App() {
           Runway
         </span>
         <span className="household-name">{household.name}</span>
-        {mode === 'cloud' ? <span className={`sync ${cloud.error ? 'bad' : ''}`}>{cloud.error ? 'Not saved' : cloud.saving ? 'Saving…' : 'Synced'}</span> : null}
+        {mode === 'cloud' ? <span className={`sync ${cloud.error ? 'bad' : ''}`}>{cloud.error ? 'Not saved' : cloud.saving ? 'Saving…' : 'Saved'}</span> : null}
       </header>
 
       <nav className="tabs" aria-label="Sections">
@@ -126,9 +142,10 @@ export default function App() {
           type="button"
           className={`side ${tab === 'settings' ? 'on' : ''}`}
           aria-current={tab === 'settings' ? 'page' : undefined}
-          aria-label="Settings"
+          aria-label={requests > 0 ? `Settings, ${requests} account ${requests === 1 ? 'request' : 'requests'}` : 'Settings'}
           onClick={() => setTab('settings')}
         >
+          {requests > 0 ? <span className="tab-badge">{requests}</span> : null}
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" />
           </svg>
@@ -141,7 +158,7 @@ export default function App() {
           <PlanView household={household} today={today} update={update} onShowList={() => setTab('trips')} />
         ) : null}
         {tab === 'trips' ? <TripsView household={household} today={today} onOpenTrip={openTrip} onPlanTrip={planTrip} /> : null}
-        {tab === 'settings' ? <SettingsView store={store} /> : null}
+        {tab === 'settings' ? <SettingsView store={store} onRequests={setRequests} /> : null}
       </main>
 
       {editor ? (

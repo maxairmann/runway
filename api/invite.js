@@ -3,9 +3,10 @@
 // sent: the admin gets a temporary password to pass on, and the person picks their own
 // the first time they sign in.
 //
-//   GET    /api/invite               list everyone who can sign in
-//   POST   /api/invite {email}       create an account, or give an existing one a new temporary password
+//   GET    /api/invite               everyone who can sign in, and account requests waiting
+//   POST   /api/invite {email}       create an account (approving any request), or give an existing one a new temporary password
 //   DELETE /api/invite?email=…       remove someone, and their plan
+//   DELETE /api/invite?request=…     decline an account request
 //
 // Needs these environment variables in Vercel (never prefix the service key with VITE_,
 // or it would be shipped to every browser):
@@ -76,7 +77,10 @@ export default async function handler(req, res) {
         .filter((u) => (u.email || '').toLowerCase() !== adminEmail)
         .map((u) => ({ email: u.email, invitedAt: u.created_at, lastSignIn: u.last_sign_in_at ?? null }))
         .sort((a, b) => (a.invitedAt < b.invitedAt ? 1 : -1));
-      return res.status(200).json({ users });
+      const { data: rows, error } = await admin.from('account_requests').select('email, created_at').order('created_at', { ascending: true });
+      if (error) throw error;
+      const requests = (rows ?? []).map((r) => ({ email: r.email, requestedAt: r.created_at }));
+      return res.status(200).json({ users, requests });
     }
 
     if (req.method === 'POST') {
@@ -90,7 +94,16 @@ export default async function handler(req, res) {
         ? await admin.auth.admin.updateUserById(existing.id, { password, user_metadata: { temp_password: true } })
         : await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { temp_password: true } });
       if (error) throw error;
+      // Approving a request: it's handled now.
+      await admin.from('account_requests').delete().eq('email', email);
       return res.status(200).json({ ok: true, existed: Boolean(existing), password });
+    }
+
+    if (req.method === 'DELETE' && req.query?.request) {
+      const email = String(req.query.request).trim().toLowerCase();
+      const { error } = await admin.from('account_requests').delete().eq('email', email);
+      if (error) throw error;
+      return res.status(200).json({ ok: true });
     }
 
     if (req.method === 'DELETE') {

@@ -23,7 +23,7 @@ function looksLikeHousehold(x: unknown): x is Household {
   return !!h && typeof h.name === 'string' && Array.isArray(h.members) && Array.isArray(h.trips);
 }
 
-export function SettingsView({ store }: { store: Store }) {
+export function SettingsView({ store, onRequests }: { store: Store; onRequests?: (count: number) => void }) {
   const { household, mode, cloud, cloudActions, cloudConfigured, update, choose, resetDemo, startLocal } = store;
   const [message, setMessage] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
@@ -33,6 +33,9 @@ export function SettingsView({ store }: { store: Store }) {
     <div className="settings">
       <h1>Settings</h1>
       <p className="hint">Match your payday and PTO rules to what HR or your paystub says. Changes save as you go.</p>
+
+      {/* Admin only: renders nothing for anyone else. */}
+      {mode === 'cloud' && cloud.phase === 'ready' ? <Invites onRequests={onRequests} /> : null}
 
       <PtoRules household={household} update={update} />
 
@@ -57,7 +60,7 @@ export function SettingsView({ store }: { store: Store }) {
       </section>
 
       <section>
-        <h2>Where it’s saved</h2>
+        <h2>{mode === 'cloud' ? 'Your account' : 'Where it’s saved'}</h2>
         {mode === 'demo' ? (
           <>
             <p>This is the demo. Changes stay in this browser and you can reset them anytime.</p>
@@ -75,16 +78,16 @@ export function SettingsView({ store }: { store: Store }) {
             <p>Saved on this phone only. Nothing leaves this device.</p>
             {cloudConfigured ? (
               <button type="button" className="primary" onClick={() => choose('cloud')}>
-                Sign in to sync across devices
+                Sign in to your account
               </button>
             ) : (
-              <p className="hint">Sharing isn’t switched on for this copy of the app. Back up your plan below to move it between devices.</p>
+              <p className="hint">Accounts aren’t switched on for this copy of the app. Back up your plan below to move it between devices.</p>
             )}
           </>
         ) : (
           <>
             <p>
-              Synced across your devices{cloud.email ? `, signed in as ${cloud.email}` : ''}.{' '}
+              Saved to your account{cloud.email ? ` (${cloud.email})` : ''}, so it’s there on any device you sign in on.{' '}
               {cloud.saving ? 'Saving…' : cloud.savedAt ? `Last saved ${formatDate(cloud.savedAt.slice(0, 10), 'medium')}.` : ''}
             </p>
             {cloud.error ? <p className="error">{cloud.error}</p> : null}
@@ -142,8 +145,6 @@ export function SettingsView({ store }: { store: Store }) {
           />
         </div>
       </section>
-
-      {mode === 'cloud' && cloud.phase === 'ready' ? <Invites /> : null}
 
       {mode !== 'demo' ? (
         <section>

@@ -3,29 +3,117 @@ import type { Household } from '../engine/types';
 import type { Mode, Store } from '../data/store';
 import { Onboarding } from './Onboarding';
 import { CorgiMark } from './Corgi';
+import * as sync from '../data/sync';
 
 export function Welcome({ cloudConfigured, onChoose, hasLocal }: { cloudConfigured: boolean; onChoose: (m: Mode) => void; hasLocal: boolean }) {
+  const [view, setView] = useState<'home' | 'request' | 'sent'>('home');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState(''); // hidden from people; bots fill it in
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Without accounts set up (a demo copy of the app), plans live on the device.
+  if (!cloudConfigured) {
+    return (
+      <main className="welcome">
+        <CorgiMark className="welcome-corgi" />
+        <h1>Runway</h1>
+        <p className="lead">Tap the days you want off and see right away whether you’ll have the PTO. Caps, carryover, and holidays included.</p>
+        <div className="welcome-actions">
+          <button type="button" className="primary wide" onClick={() => onChoose('local')}>
+            {hasLocal ? 'Open my plan' : 'Start a plan'}
+          </button>
+          <button type="button" className="wide ghost" onClick={() => onChoose('demo')}>
+            Try the demo with sample data
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (view === 'sent') {
+    return (
+      <main className="welcome">
+        <CorgiMark className="welcome-corgi" />
+        <h1>Request sent</h1>
+        <p className="lead">
+          Thanks. Once your request is approved, you’ll get a temporary password for {email}. Then come back here and tap Sign in.
+        </p>
+        <div className="welcome-actions">
+          <button type="button" className="wide" onClick={() => setView('home')}>
+            Back
+          </button>
+          <button type="button" className="wide ghost" onClick={() => onChoose('demo')}>
+            Try the demo while you wait
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (view === 'request') {
+    return (
+      <main className="welcome">
+        <button type="button" className="link back" onClick={() => setView('home')}>
+          Back
+        </button>
+        <h1>Request an account</h1>
+        <form
+          className="welcome-actions"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError(null);
+            try {
+              await sync.requestAccount(email.trim(), website);
+              setView('sent');
+            } catch (err) {
+              setError((err as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <p className="lead">Runway is invite-only for now. Leave your email and you’ll hear back with a temporary password.</p>
+          <label className="field">
+            <span className="label">Email</span>
+            <input id="request-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label className="hp" aria-hidden="true">
+            Website
+            <input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+          </label>
+          {error ? <p className="error">{error}</p> : null}
+          <button type="submit" className="primary wide" disabled={busy}>
+            {busy ? 'Sending…' : 'Request an account'}
+          </button>
+        </form>
+      </main>
+    );
+  }
+
   return (
     <main className="welcome">
       <CorgiMark className="welcome-corgi" />
       <h1>Runway</h1>
-      <p className="lead">
-        Tap the days you want off and see right away whether you’ll have the PTO. Caps, carryover, and holidays included.
-      </p>
+      <p className="lead">Tap the days you want off and see right away whether you’ll have the PTO. Caps, carryover, and holidays included.</p>
       <div className="welcome-actions">
-        <button type="button" className="primary wide" onClick={() => onChoose('local')}>
-          {hasLocal ? 'Open the plan on this phone' : 'Start a plan on this phone'}
+        <button type="button" className="primary wide" onClick={() => onChoose('cloud')}>
+          Sign in
         </button>
-        {cloudConfigured ? (
-          <button type="button" className="wide" onClick={() => onChoose('cloud')}>
-            Sign in to sync your plan
-          </button>
-        ) : null}
+        <button type="button" className="wide" onClick={() => setView('request')}>
+          Request an account
+        </button>
         <button type="button" className="wide ghost" onClick={() => onChoose('demo')}>
           Try the demo with sample data
         </button>
+        {hasLocal ? (
+          <button type="button" className="link" onClick={() => onChoose('local')}>
+            Open the plan saved on this phone
+          </button>
+        ) : null}
       </div>
-      <p className="fine">A plan on this phone stays on this phone. Sign in to use the same plan on your phone and laptop.</p>
+      <p className="fine">Runway is invite-only for now.</p>
     </main>
   );
 }
@@ -167,8 +255,8 @@ export function CloudGate({ store, onBack }: { store: Store; onBack: () => void 
       <button type="button" className="link back" onClick={onBack}>
         Back
       </button>
-      <h1>Set up your synced plan</h1>
-      <p className="lead">Signed in as {cloud.email}. Your plan will be the same on every device you sign in on.</p>
+      <h1>Set up your plan</h1>
+      <p className="lead">Signed in as {cloud.email}. Your plan is saved to your account, so it’s there whenever you sign in.</p>
       <div className="welcome-actions">
         {localPlan ? (
           <button type="button" className="primary wide" disabled={busy} onClick={() => void run(() => cloudActions.create(localPlan))}>
